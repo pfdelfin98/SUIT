@@ -304,7 +304,7 @@ class Ui_Dashboard(object):
                         tbl_student s \
                     JOIN \
                         tbl_logs l ON s.id = l.student_id \
-                    WHERE l.improper = '1' and s.department = '{self.selected_department}' AND l.date_log = '{current_date}' AND l.log_type = 'LOGGED_IN' \
+                    WHERE l.improper = '1' and s.department = '{self.selected_department}' AND l.date_log = '{current_date}'  \
                     GROUP BY s.course"
             cursor.execute(query)
             if cursor.rowcount > 0:
@@ -382,7 +382,7 @@ class Ui_Dashboard(object):
                         tbl_student s \
                     JOIN \
                         tbl_logs l ON s.id = l.student_id \
-                    WHERE tbl_logs.improper = '1' and s.department = '{self.selected_department}' AND l.date_log = '{current_date}' AND l.log_type = 'LOGGED_IN' \
+                    WHERE tbl_logs.improper = '1' and s.department = '{self.selected_department}' AND l.date_log = '{current_date}' \
                     GROUP BY s.course"
             cursor.execute(query)
             chart_data = cursor.fetchall()

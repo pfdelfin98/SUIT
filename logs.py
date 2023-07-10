@@ -193,7 +193,7 @@ class Logs(object):
         # self.label.setFont(font)
         # self.label.setObjectName("label")
         self.label_10 = QtWidgets.QLabel(self.centralwidget)
-        self.label_10.setGeometry(QtCore.QRect(310, 90, 201, 51))
+        self.label_10.setGeometry(QtCore.QRect(310, 90, 270, 51))
         font = QtGui.QFont()
         font.setFamily("Arial")
         font.setPointSize(15)
@@ -265,7 +265,7 @@ class Logs(object):
                 "SUIT: School Uniform Identifier Technology using Object Detection",
             )
         )
-        self.label_10.setText(_translate("MainWindow", "Logs"))
+        self.label_10.setText(_translate("MainWindow", "Captured Improper Uniform"))
 
     def load_logs(self):
         if self.search_has_input:
@@ -281,7 +281,7 @@ class Logs(object):
         cursor.execute(delete_query, (week_ago.date(),))
         connection.commit()
 
-        query = "SELECT  tbl_student.image, tbl_student.first_name, tbl_student.last_name, tbl_student.course, tbl_student.sr_code, tbl_student.gender, tbl_logs.date_log, tbl_logs.time_log, tbl_logs.log_type FROM tbl_logs LEFT JOIN tbl_student ON tbl_logs.student_id = tbl_student.id WHERE tbl_logs.improper = '1'"
+        query = "SELECT  tbl_student.image, tbl_student.first_name, tbl_student.last_name, tbl_student.course, tbl_student.sr_code, tbl_student.gender, tbl_logs.date_log, tbl_logs.time_log FROM tbl_logs LEFT JOIN tbl_student ON tbl_logs.student_id = tbl_student.id WHERE tbl_logs.improper = '1'"
         cursor.execute(query)
         logs = cursor.fetchall()
 
@@ -364,7 +364,7 @@ class Logs(object):
 
         query = """
         SELECT tbl_student.image, tbl_student.first_name, tbl_student.last_name,
-               tbl_student.course, tbl_student.sr_code, tbl_student.gender, tbl_logs.date_log, tbl_logs.time_log, tbl_logs.log_type
+               tbl_student.course, tbl_student.sr_code, tbl_student.gender, tbl_logs.date_log, tbl_logs.time_log
         FROM tbl_logs
         LEFT JOIN tbl_student ON tbl_logs.student_id = tbl_student.id
         WHERE tbl_logs.improper = '1' and tbl_student.first_name LIKE %s
