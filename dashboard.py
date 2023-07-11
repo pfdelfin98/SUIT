@@ -133,8 +133,6 @@ class Ui_Dashboard(object):
         )
         self.detectionBtn.setObjectName("detectionBtn")
 
-        
-    
         self.exitBtn = QtWidgets.QPushButton(self.frame)
         self.exitBtn.setGeometry(QtCore.QRect(40, 350, 221, 31))
         font = QtGui.QFont()
@@ -258,7 +256,12 @@ class Ui_Dashboard(object):
         self.exitBtn.setText(_translate("MainWindow", "Exit"))
 
         self.label_10.setText(_translate("MainWindow", "Dashboard"))
-        self.label.setText(_translate("MainWindow", "SUIT: School Uniform Identifier Technology using Object Detection"))
+        self.label.setText(
+            _translate(
+                "MainWindow",
+                "SUIT: School Uniform Identifier Technology using Object Detection",
+            )
+        )
 
     def start_loading_students(self):
         # Start loading the students initially
@@ -266,10 +269,11 @@ class Ui_Dashboard(object):
         print("Load Students")
 
     def open_detection(self):
-        # Uniform Detection Window
-        print("Opening Uniform Detection...")
+        from UniformDetection import UniformDetectionWindow
 
+        detection = UniformDetectionWindow()
 
+        detection.uniform_detection_func()
 
     def open_logs(self):
         print("Opening Logs...")
@@ -357,7 +361,9 @@ class Ui_Dashboard(object):
         ax.set_xlabel("Courses")
         ax.set_ylabel("Count")
         ax.set_ybound(upper=(yvalue * 2) / 1.5)
-        ax.set_title(f"Improper Uniform Analytics for {self.selected_department} Department")
+        ax.set_title(
+            f"Improper Uniform Analytics for {self.selected_department} Department"
+        )
         ax.set_xticks(x)
         ax.set_xticklabels(self.categories)
         ax.legend()
