@@ -23,7 +23,7 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-
+#Dashboard
 class Ui_Dashboard(object):
     def __init__(self) -> None:
         self.logs_sent = False
@@ -302,13 +302,13 @@ class Ui_Dashboard(object):
             cursor = connection.cursor()
             query = f"SELECT \
                         s.course, \
-                        SUM(CASE WHEN s.gender = 'male' THEN 1 ELSE 0 END) AS male_log_count, \
-                        SUM(CASE WHEN s.gender = 'female' THEN 1 ELSE 0 END) AS female_log_count \
+                        SUM(CASE WHEN l.improper = '1' THEN 1 ELSE 0 END) AS male_log_count, \
+                        SUM(CASE WHEN l.improper = '0' THEN 1 ELSE 0 END) AS female_log_count \
                     FROM \
                         tbl_student s \
                     JOIN \
                         tbl_logs l ON s.id = l.student_id \
-                    WHERE l.improper = '1' and s.department = '{self.selected_department}' AND l.date_log = '{current_date}'  \
+                    WHERE  s.department = '{self.selected_department}' AND l.date_log = '{current_date}'  \
                     GROUP BY s.course"
             cursor.execute(query)
             if cursor.rowcount > 0:
@@ -346,14 +346,14 @@ class Ui_Dashboard(object):
             x - bar_width / 2,
             self.male_log_counts,
             width=bar_width,
-            label="Male",
+            label="Improper",
             color="#4F81BD",
         )
         ax.bar(
             x + bar_width / 2,
             self.female_log_counts,
             width=bar_width,
-            label="Female",
+            label="Proper",
             color="#C0504D",
         )
 
@@ -362,7 +362,7 @@ class Ui_Dashboard(object):
         ax.set_ylabel("Count")
         ax.set_ybound(upper=(yvalue * 2) / 1.5)
         ax.set_title(
-            f"Improper Uniform Analytics for {self.selected_department} Department"
+            f"School Uniform Analytics for {self.selected_department} Department"
         )
         ax.set_xticks(x)
         ax.set_xticklabels(self.categories)
@@ -382,18 +382,18 @@ class Ui_Dashboard(object):
             cursor = connection.cursor()
             query = f"SELECT \
                         s.course, \
-                        SUM(CASE WHEN s.gender = 'male' THEN 1 ELSE 0 END) AS male_log_count, \
-                        SUM(CASE WHEN s.gender = 'female' THEN 1 ELSE 0 END) AS female_log_count \
+                       SUM(CASE WHEN l.improper = '1' THEN 1 ELSE 0 END) AS male_log_count, \
+                        SUM(CASE WHEN l.improper = '0' THEN 1 ELSE 0 END) AS female_log_count \
                     FROM \
                         tbl_student s \
                     JOIN \
                         tbl_logs l ON s.id = l.student_id \
-                    WHERE tbl_logs.improper = '1' and s.department = '{self.selected_department}' AND l.date_log = '{current_date}' \
+                    WHERE s.department = '{self.selected_department}' AND l.date_log = '{current_date}' \
                     GROUP BY s.course"
             cursor.execute(query)
             chart_data = cursor.fetchall()
 
-            categories = ("Course", "Male", "Female")
+            categories = ("Course", "Improper", "Proper")
             rows = [categories]  # Column headers for excel file
             for row in chart_data:
                 rows.append(row)
