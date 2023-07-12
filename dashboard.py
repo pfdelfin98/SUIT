@@ -23,7 +23,7 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-
+#Dashboard
 class Ui_Dashboard(object):
     def __init__(self) -> None:
         self.logs_sent = False
