@@ -446,8 +446,11 @@ class Logs(object):
         self.load_logs()
 
     def open_detection(self):
-        # Uniform Detection Window
-        print("Opening Uniform Detection..")
+        from UniformDetection import UniformDetectionWindow
+
+        detection = UniformDetectionWindow()
+
+        detection.uniform_detection_func()
 
     def open_dashboard(self):
         print("Opening Dashboard...")

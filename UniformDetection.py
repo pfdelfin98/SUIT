@@ -15,7 +15,7 @@ class UniformDetectionWindow(object):
         ]
 
         # Detection Config
-        self.accepted_valid_conf = 0.7
+        self.accepted_valid_conf = 0.8
 
         # Video config
         screen = screeninfo.get_monitors()[0]
@@ -26,8 +26,8 @@ class UniformDetectionWindow(object):
         self.y = 20  # Adjust for screen pop up position
 
     def uniform_detection_func(self):
-        # cap = cv2.VideoCapture("./segment/test/male/vid/1.mp4")
-        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        cap = cv2.VideoCapture("./segment/test/male/vid/3.mp4")
+        # cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_height)
         cap.set(cv2.CAP_PROP_FPS, 25)
@@ -43,7 +43,9 @@ class UniformDetectionWindow(object):
 
         while True:
             success, frame = cap.read()
-            results = self.model(frame, stream=True, conf=0.5, agnostic_nms=True)
+            results = self.model(
+                frame, stream=True, conf=self.accepted_valid_conf, agnostic_nms=True
+            )
 
             detection_found = False
 
@@ -57,7 +59,7 @@ class UniformDetectionWindow(object):
 
                     # Confidence
                     confidence = math.ceil((box.conf[0] * 100)) / 100
-                    if confidence > self.accepted_conf:
+                    if confidence > self.accepted_valid_conf:
                         valid_count += 1
                         detection_found = True
 
