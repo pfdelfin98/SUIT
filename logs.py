@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QLabel,
+    QHeaderView,
 )
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import QPixmap
@@ -54,7 +55,7 @@ class Logs(object):
         self.tableWidget = QTableWidget(self.centralwidget)
         self.tableWidget.setGeometry(QtCore.QRect(310, 150, 1240, 450))
         self.tableWidget.setObjectName("tableWidget")
-
+        self.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         # search bar
         self.searchLineEdit = QtWidgets.QLineEdit(self.centralwidget)
         self.searchLineEdit.setGeometry(QtCore.QRect(1180, 95, 200, 30))
@@ -346,7 +347,7 @@ class Logs(object):
 
         self.tableWidget.setRowCount(row_count)
         self.tableWidget.setColumnCount(column_count)
-        header = self.tableWidget.horizontalHeader()       
+        self.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         header_labels = [
             "Improper",
