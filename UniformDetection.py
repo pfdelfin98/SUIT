@@ -4,11 +4,15 @@ import math
 import time
 import screeninfo
 from ultralytics import YOLO
+from send_logs import send_logs_to_db
 
 
 class UniformDetectionWindow(object):
     def __init__(self):
-        self.model = YOLO("./segment/weights/best.pt")
+        self.detect_person_model = YOLO("yolov8m.pt")
+        self.classNames_person = ["Person"]
+
+        self.detect_unif_model = YOLO("./segment/weights/best.pt")
         self.classnames = [
             "Female_Uniform",
             "Male_Uniform",
@@ -30,86 +34,151 @@ class UniformDetectionWindow(object):
         # cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_height)
-        cap.set(cv2.CAP_PROP_FPS, 25)
 
-        valid_count = 0
-        prev_time = time.time()
+        person_detected = False
+        detection_found = False
+
+        valid_detection_started = False
+        valid_detection_start_time = None
         valid_detection_duration = 0
+
+        invalid_detection_started = False
+        invalid_detection_start_time = None
         invalid_detection_duration = 0
 
-        detection_started = False
-        detection_start_time = None
-        last_valid_detection_time = 0
-
+        log_sent = False
         while True:
-            success, frame = cap.read()
-            results = self.model(
-                frame, stream=True, conf=self.accepted_valid_conf, agnostic_nms=True
+            success, img = cap.read()
+            results = self.detect_person_model(
+                img, stream=True, classes=[0, 1], conf=0.9
             )
-
-            detection_found = False
-
             for r in results:
-                boxes = r.boxes
-                for box in boxes:
-                    # Bounding Box
-                    x1, y1, x2, y2 = box.xyxy[0]
-                    x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-                    w, h = x2 - x1, y2 - y1
+                if len(r) > 0:
+                    person_detected = True
+                else:
+                    person_detected = False
 
-                    # Confidence
-                    confidence = math.ceil((box.conf[0] * 100)) / 100
-                    if confidence > self.accepted_valid_conf:
-                        valid_count += 1
-                        detection_found = True
+                if person_detected:
+                    unif_results = self.detect_unif_model(
+                        img, stream=True, conf=self.accepted_valid_conf
+                    )
+                    for unif_r in unif_results:
+                        if len(unif_r) > 0:
+                            unif_boxes = unif_r.boxes
+                            for u_box in unif_boxes:
+                                # Bounding Box
+                                x1, y1, x2, y2 = u_box.xyxy[0]
+                                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                                w, h = x2 - x1, y2 - y1
+                                u_conf = math.ceil((u_box.conf[0] * 100)) / 100
 
-                        if not detection_started:
-                            detection_start_time = time.time()
-                            detection_started = True
+                                if u_conf > self.accepted_valid_conf:
+                                    detection_found = True
 
-                        last_valid_detection_time = time.time()
+                                    if not valid_detection_started:
+                                        valid_detection_start_time = time.time()
+                                        valid_detection_started = True
+                                # Class Name
+                                cls = int(u_box.cls[0])
 
-                    # Class Name
-                    cls = int(box.cls[0])
+                                cvzone.cornerRect(img, (x1, y1, w, h))
 
-                    cvzone.cornerRect(frame, (x1, y1, w, h))
-                    cvzone.putTextRect(
-                        frame,
-                        f"{self.classnames[cls]} {confidence}",
-                        (max(0, x1), max(35, y1)),
-                        scale=1,
-                        thickness=1,
+                                cvzone.putTextRect(
+                                    img,
+                                    f"{self.classnames[cls]} {u_conf}",
+                                    (max(0, x1), max(35, y1)),
+                                    scale=1,
+                                    thickness=1,
+                                )
+                        else:
+                            print("Invalid Uniform Detected")
+                            detection_found = False
+
+                            if not invalid_detection_started:
+                                invalid_detection_start_time = time.time()
+                                invalid_detection_started = True
+
+                    if detection_found:
+                        invalid_detection_duration = 0
+                    else:
+                        valid_detection_duration = 0
+
+                    current_time = time.time()
+                    print(f"Valid detection seconds: {int(valid_detection_duration)}")
+                    print(
+                        f"Invalid detection seconds: {int(invalid_detection_duration)}"
                     )
 
-            if detection_found:
-                invalid_detection_duration = 0
-            else:
-                invalid_detection_duration = time.time() - last_valid_detection_time
+                    if valid_detection_started:
+                        if detection_found:
+                            valid_detection_duration = (
+                                current_time - valid_detection_start_time
+                            )
 
-            current_time = time.time()
+                    if invalid_detection_started:
+                        if not detection_found:
+                            invalid_detection_duration = (
+                                current_time - invalid_detection_start_time
+                            )
 
-            if current_time - prev_time >= 1.0:
-                print(f"Valid detection seconds: {abs(valid_detection_duration)}")
-                print(
-                    f"No/Invalid detection seconds: {0 if abs(invalid_detection_duration)>1000 else abs(invalid_detection_duration)}"
-                )
-                valid_count = 0
-                prev_time = current_time
-
-            if detection_started:
-                if detection_found:
-                    valid_detection_duration = current_time - detection_start_time
+                    if int(valid_detection_duration) >= 5:
+                        cvzone.putTextRect(
+                            img,
+                            f"Proper uniform Detected",
+                            (10, 25),
+                            scale=2,
+                            thickness=2,
+                            colorR=(0, 255, 0),  # Green
+                        )
+                        if not log_sent:
+                            print("------------")
+                            print("Sending logs to db")
+                            print("------------")
+                            send_logs_to_db(unif_detect_choice="PROPER")
+                            log_sent = True
+                    elif int(invalid_detection_duration) >= 5:
+                        cvzone.putTextRect(
+                            img,
+                            f"Improper Uniform Detected",
+                            (10, 25),
+                            scale=2,
+                            thickness=2,
+                            colorR=(0, 0, 255),  # Red
+                        )
+                        if not log_sent:
+                            print("------------")
+                            print("Sending logs to db")
+                            print("------------")
+                            send_logs_to_db(unif_detect_choice="IMPROPER")
+                            log_sent = True
+                    else:
+                        cvzone.putTextRect(
+                            img,
+                            f"Person Detected",
+                            (10, 25),
+                            scale=2,
+                            thickness=2,
+                            colorR=(255, 0, 0),  # Blue
+                        )
                 else:
+                    current_time = time.time()
                     valid_detection_duration = 0
-                    detection_started = False
+                    invalid_detection_duration = 0
+                    valid_detection_started = False
+                    invalid_detection_started = False
+                    log_sent = False
+                    cvzone.putTextRect(
+                        img,
+                        f"No Person Detected",
+                        (10, 25),
+                        scale=2,
+                        thickness=3,
+                        font=cv2.FONT_HERSHEY_PLAIN,
+                        colorR=(0, 0, 0),
+                    )
 
-            window_name = "Uniform Detection"
-            cv2.namedWindow(window_name, cv2.WINDOW_FULLSCREEN)
-            cv2.moveWindow(window_name, self.x, self.y)
-            cv2.imshow(window_name, frame)
+            cv2.imshow("Image", img)
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
-
-        cap.release()
-        cv2.destroyAllWindows()
+            cv2.waitKey(1)

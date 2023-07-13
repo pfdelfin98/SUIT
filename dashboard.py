@@ -23,7 +23,7 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-#Dashboard
+
 class Ui_Dashboard(object):
     def __init__(self) -> None:
         self.logs_sent = False
@@ -294,33 +294,25 @@ class Ui_Dashboard(object):
             host="localhost", user="root", password="", database="suit_db"
         )
         self.categories = []
-        self.male_log_counts = []
-        self.female_log_counts = []
+        self.improper_log_count = []
+        self.proper_log_count = []
 
         try:
             # Execute the query and fetch the course and gender data
             cursor = connection.cursor()
-            query = f"SELECT \
-                        s.course, \
-                        SUM(CASE WHEN l.improper = '1' THEN 1 ELSE 0 END) AS male_log_count, \
-                        SUM(CASE WHEN l.improper = '0' THEN 1 ELSE 0 END) AS female_log_count \
-                    FROM \
-                        tbl_student s \
-                    JOIN \
-                        tbl_logs l ON s.id = l.student_id \
-                    WHERE  s.department = '{self.selected_department}' AND l.date_log = '{current_date}'  \
-                    GROUP BY s.course"
+            query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' GROUP BY course"
+
             cursor.execute(query)
             if cursor.rowcount > 0:
                 for row in cursor.fetchall():
-                    course, male_counts, female_counts = row
+                    course, improper_log_count, proper_log_count = row
                     self.categories.append(course)
-                    self.male_log_counts.append(male_counts)
-                    self.female_log_counts.append(female_counts)
+                    self.improper_log_count.append(improper_log_count)
+                    self.proper_log_count.append(proper_log_count)
 
             else:
-                self.male_log_counts = [0]
-                self.female_log_counts = [0]
+                self.improper_log_count = [0]
+                self.proper_log_count = [0]
 
         finally:
             connection.close()
@@ -344,14 +336,14 @@ class Ui_Dashboard(object):
 
         ax.bar(
             x - bar_width / 2,
-            self.male_log_counts,
+            self.improper_log_count,
             width=bar_width,
             label="Improper",
             color="#4F81BD",
         )
         ax.bar(
             x + bar_width / 2,
-            self.female_log_counts,
+            self.proper_log_count,
             width=bar_width,
             label="Proper",
             color="#C0504D",
@@ -380,20 +372,11 @@ class Ui_Dashboard(object):
         try:
             # Execute the query and fetch the gender and gender data
             cursor = connection.cursor()
-            query = f"SELECT \
-                        s.course, \
-                       SUM(CASE WHEN l.improper = '1' THEN 1 ELSE 0 END) AS male_log_count, \
-                        SUM(CASE WHEN l.improper = '0' THEN 1 ELSE 0 END) AS female_log_count \
-                    FROM \
-                        tbl_student s \
-                    JOIN \
-                        tbl_logs l ON s.id = l.student_id \
-                    WHERE s.department = '{self.selected_department}' AND l.date_log = '{current_date}' \
-                    GROUP BY s.course"
+            query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' GROUP BY course"
             cursor.execute(query)
             chart_data = cursor.fetchall()
 
-            categories = ("Course", "Improper", "Proper")
+            categories = ("Course", "Improper Uniform", "Proper Uniform")
             rows = [categories]  # Column headers for excel file
             for row in chart_data:
                 rows.append(row)
@@ -454,6 +437,5 @@ if __name__ == "__main__":
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_Dashboard()
     ui.setupUi(MainWindow)
-    # ui.load_logs()
     MainWindow.show()
     sys.exit(app.exec_())

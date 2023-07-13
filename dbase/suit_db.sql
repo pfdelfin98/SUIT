@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jul 12, 2023 at 05:41 AM
+-- Generation Time: Jul 13, 2023 at 06:49 AM
 -- Server version: 10.4.27-MariaDB
 -- PHP Version: 8.2.0
 
@@ -43,15 +43,38 @@ INSERT INTO `tbl_admin` (`id`, `username`, `password`) VALUES
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `tbl_detect_log`
+--
+
+CREATE TABLE `tbl_detect_log` (
+  `id` int(11) NOT NULL,
+  `date_log` date DEFAULT NULL,
+  `time_log` time DEFAULT NULL,
+  `department` varchar(50) NOT NULL,
+  `course` varchar(50) NOT NULL,
+  `unif_detect_result` varchar(50) NOT NULL DEFAULT '"IMPROPER"'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `tbl_detect_log`
+--
+
+INSERT INTO `tbl_detect_log` (`id`, `date_log`, `time_log`, `department`, `course`, `unif_detect_result`) VALUES
+(23, '2023-07-13', '12:47:52', 'CONAHS', 'BS in Nutrition and Dietetics', 'PROPER');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `tbl_logs`
 --
 
 CREATE TABLE `tbl_logs` (
-  `id` int(11) NOT NULL,
   `student_id` int(11) NOT NULL,
   `date_log` date NOT NULL DEFAULT current_timestamp(),
   `time_log` time NOT NULL DEFAULT current_timestamp(),
-  `log_type` text NOT NULL,
+  `department` varchar(50) NOT NULL,
+  `course` varchar(100) NOT NULL,
+  `unif_detect_result` int(11) NOT NULL DEFAULT 0,
   `improper` int(11) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -59,9 +82,15 @@ CREATE TABLE `tbl_logs` (
 -- Dumping data for table `tbl_logs`
 --
 
-INSERT INTO `tbl_logs` (`id`, `student_id`, `date_log`, `time_log`, `log_type`, `improper`) VALUES
-(6, 16, '2023-07-10', '00:00:00', '', 1),
-(7, 17, '2023-07-10', '00:00:00', '', 1);
+INSERT INTO `tbl_logs` (`student_id`, `date_log`, `time_log`, `department`, `course`, `unif_detect_result`, `improper`) VALUES
+(16, '2023-07-10', '00:00:00', '', '', 1, 0),
+(17, '2023-07-10', '00:00:00', '', '', 1, 0),
+(18, '2023-07-13', '11:58:27', 'CABEIHM', 'BS in Tourism Management', 0, 0),
+(19, '2023-07-13', '11:59:18', 'CET', 'BS in Computer Engineering', 0, 0),
+(20, '2023-07-13', '11:59:22', 'CABEIHM', 'BS in Accountancy', 0, 0),
+(21, '2023-07-13', '11:59:24', 'CET', 'BS in Industrial Technology', 0, 0),
+(22, '2023-07-13', '12:01:21', 'CONAHS', 'BS in Nutrition and Dietetics', 1, 0),
+(23, '2023-07-13', '12:01:27', 'CET', 'BS in Computer Engineering', 1, 0);
 
 -- --------------------------------------------------------
 
@@ -104,10 +133,16 @@ ALTER TABLE `tbl_admin`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `tbl_detect_log`
+--
+ALTER TABLE `tbl_detect_log`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `tbl_logs`
 --
 ALTER TABLE `tbl_logs`
-  ADD PRIMARY KEY (`id`);
+  ADD PRIMARY KEY (`student_id`);
 
 --
 -- Indexes for table `tbl_student`
@@ -126,10 +161,16 @@ ALTER TABLE `tbl_admin`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
+-- AUTO_INCREMENT for table `tbl_detect_log`
+--
+ALTER TABLE `tbl_detect_log`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
+
+--
 -- AUTO_INCREMENT for table `tbl_logs`
 --
 ALTER TABLE `tbl_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=24;
 
 --
 -- AUTO_INCREMENT for table `tbl_student`
