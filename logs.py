@@ -282,36 +282,34 @@ class Logs(object):
         cursor.execute(delete_query, (week_ago.date(),))
         connection.commit()
 
-        query = "SELECT  tbl_logs.improper, tbl_logs.date_log, tbl_logs.time_log FROM tbl_logs"
+        query = "SELECT  unif_detect_result, department, course, date_log, time_log FROM tbl_detect_log"
         cursor.execute(query)
         logs = cursor.fetchall()
 
         row_count = len(logs)
-        column_count = 3  # Increase the column count for the image column
+        column_count = 5  # Increase the column count for the image column
 
         self.tableWidget.setRowCount(row_count)
         self.tableWidget.setColumnCount(column_count)
 
         header_labels = [
             "Detected",
+            "Department",
+            "Course",
             "Date",
             "Time",
         ]
         self.tableWidget.setHorizontalHeaderLabels(header_labels)
 
         for row, log in enumerate(logs):
-            improper, date_log, time_log = log
+            unif_detect_reuslt, department, course, date_log, time_log = log
 
-            if improper == 0:
-                improper_text = "Proper Uniform"
-            elif improper == 1:
-                improper_text = "Improper Uniform"
-            else:
-                improper_text = "Unknown"
 
-            self.tableWidget.setItem(row, 0, QTableWidgetItem(improper_text))
-            self.tableWidget.setItem(row, 1, QTableWidgetItem(str(date_log)))
-            self.tableWidget.setItem(row, 2, QTableWidgetItem(str(time_log)))
+            self.tableWidget.setItem(row, 0, QTableWidgetItem(str(unif_detect_reuslt)))
+            self.tableWidget.setItem(row, 1, QTableWidgetItem(str(department)))
+            self.tableWidget.setItem(row, 2, QTableWidgetItem(str(course)))
+            self.tableWidget.setItem(row, 3, QTableWidgetItem(str(date_log)))
+            self.tableWidget.setItem(row, 4, QTableWidgetItem(str(time_log)))
 
         cursor.close()
 
@@ -330,46 +328,44 @@ class Logs(object):
             QTimer.singleShot(1000, self.load_logs)
 
         query = """
-        SELECT tbl_logs.improper, tbl_logs.date_log, tbl_logs.time_log
-        FROM tbl_logs
-        WHERE tbl_logs.improper LIKE %s
-            OR tbl_logs.date_log LIKE %s
-            OR tbl_logs.time_log LIKE %s
+        SELECT
+           unif_detect_result, department, course, date_log,
+           time_log
+        FROM tbl_detect_log
+        WHERE unif_detect_result LIKE %s
+            OR department LIKE %s OR course LIKE %s
+            OR time_log LIKE %s OR date_log LIKE %s
         """
         search_pattern = f"%{search_text}%"  # Add wildcards for partial matching
         cursor.execute(
-            query, (search_pattern, search_pattern, search_pattern)
+            query, (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern)
         )
         logs = cursor.fetchall()
 
         row_count = len(logs)
-        column_count = 3  # Increase the column count for the image column
+        column_count = 5  # Increase the column count for the image column
 
         self.tableWidget.setRowCount(row_count)
         self.tableWidget.setColumnCount(column_count)
         self.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         header_labels = [
-            "Improper",
+            "Detected",
+            "Department",
+            "Course",
             "Date",
             "Time",
         ]
         self.tableWidget.setHorizontalHeaderLabels(header_labels)
 
         for row, log in enumerate(logs):
-            improper, date_log, time_log = log
-
-            if improper == 0:
-                improper_text2 = "Proper Uniform"
-            elif improper == 1:
-                improper_text2 = "Improper Uniform"
-            else:
-                improper_text2 = "Unknown"
-
+            unif_detect_result, department, course, date_log, time_log = log
     
-            self.tableWidget.setItem(row, 0, QTableWidgetItem(str(improper_text2)))
-            self.tableWidget.setItem(row, 1, QTableWidgetItem(str(date_log)))
-            self.tableWidget.setItem(row, 2, QTableWidgetItem(str(time_log)))
+            self.tableWidget.setItem(row, 0, QTableWidgetItem(str(unif_detect_result)))
+            self.tableWidget.setItem(row, 1, QTableWidgetItem(str(department)))
+            self.tableWidget.setItem(row, 2, QTableWidgetItem(str(course)))
+            self.tableWidget.setItem(row, 3, QTableWidgetItem(str(date_log)))
+            self.tableWidget.setItem(row, 4, QTableWidgetItem(str(time_log)))
 
         cursor.close()
         connection.close()
@@ -404,7 +400,7 @@ class Logs(object):
             cursor = connection.cursor()
 
             # Retrieve data from the tbl_student table
-            select_query = "SELECT CONCAT(tbl_student.first_name, ' ', tbl_student.last_name) AS student_name, tbl_student.course, tbl_student.sr_code, tbl_logs.date_log, tbl_logs.time_log FROM tbl_logs LEFT JOIN tbl_student ON tbl_logs.student_id = tbl_student.id"
+            select_query = "SELECT unif_detect_result, department, course, date_log, time_log FROM tbl_detect_log"
             cursor.execute(select_query)
             student_data = cursor.fetchall()
 
@@ -413,9 +409,9 @@ class Logs(object):
             sheet = workbook.active
 
             # Write the column headers
-            sheet["A1"] = "Student Name"
-            sheet["B1"] = "Course"
-            sheet["C1"] = "SR Code"
+            sheet["A1"] = "Detected"
+            sheet["B1"] = "Department"
+            sheet["C1"] = "Course"
             sheet["D1"] = "Date Log"
             sheet["E1"] = "Time Log"
 
