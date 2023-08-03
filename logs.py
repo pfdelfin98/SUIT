@@ -29,7 +29,7 @@ class Logs(object):
         # For Excel File
         self.file_name = ""
         self.file_path = ""
-        self.folder_name = "logs"
+        self.folder_name = "Logs"
         self.folder_path = rf"C:\Users\SampleUser\Desktop\{self.folder_name}"  # Change this to your own file path
 
         # Export and Delete Analytics Every Monday (Check Every Second)
@@ -55,7 +55,7 @@ class Logs(object):
         query_value = cursor.fetchone()[0]
 
         if query_value > self.current_tbl_row_count:
-            self.load_logs()
+            self.search_logs()
         self.current_tbl_row_count = query_value
         cursor.close()
 
@@ -245,23 +245,23 @@ class Logs(object):
         )
         self.detectionBtn.setObjectName("detectionBtn")
 
-        self.exitBtn = QtWidgets.QPushButton(self.frame)
-        self.exitBtn.setGeometry(QtCore.QRect(40, 350, 221, 31))
+        self.logoutBtn = QtWidgets.QPushButton(self.frame)
+        self.logoutBtn.setGeometry(QtCore.QRect(40, 350, 221, 31))
         font = QtGui.QFont()
         font.setFamily("Arial")
         font.setPointSize(12)
-        self.exitBtn.setFont(font)
-        self.exitBtn.setStyleSheet(
+        self.logoutBtn.setFont(font)
+        self.logoutBtn.setStyleSheet(
             " background-color: transparent;\n" "color: white;\n" ""
         )
-        self.exitBtn.setStyleSheet(
+        self.logoutBtn.setStyleSheet(
             " background-color: transparent;\n"
             "color: white;\n"
             "text-align: left;\n"
             ""
         )
-        self.exitBtn.setObjectName("exitBtn")
-        self.exitBtn.clicked.connect(QtWidgets.qApp.quit)
+        self.logoutBtn.setObjectName("logoutBtn")
+        self.logoutBtn.clicked.connect(QtWidgets.qApp.quit)
 
         self.frame_3 = QtWidgets.QFrame(self.centralwidget)
         self.frame_3.setGeometry(QtCore.QRect(261, -1, 2000, 61))
@@ -314,7 +314,7 @@ class Logs(object):
         self.dashboardBtn.setText(_translate("MainWindow", "Dashboard"))
         self.logsBtn.setText(_translate("MainWindow", "Improper Uniform Monitoring"))
         self.detectionBtn.setText(_translate("MainWindow", "Detection"))
-        self.exitBtn.setText(_translate("MainWindow", "Exit"))
+        self.logoutBtn.setText(_translate("MainWindow", "Logout"))
 
         self.label.setText(
             _translate(
@@ -460,7 +460,7 @@ class Logs(object):
 
     def start_loading_students(self):
         # Start loading the students initially
-        self.load_logs()
+        self.search_logs()
 
     def open_detection(self):
         from UniformDetection import UniformDetectionWindow
@@ -482,14 +482,48 @@ class Logs(object):
         connection = pymysql.connect(
             host="localhost", user="root", password="", database="suit_db"
         )
+        department_filter = self.deparmentComboBox.currentText()
+        detectedtype_filter = self.detectedtypeComboBox.currentText()
+        date_filter_from = self.datefromDateEdit.date().toString("yyyy-MM-dd")
+        date_filter_to = self.datetoDateEdit.date().toString("yyyy-MM-dd")
+
+        search_text = self.searchLineEdit.text()
 
         try:
             # Create a cursor object to execute SQL queries
             cursor = connection.cursor()
 
             # Retrieve data from the tbl_student table
-            select_query = "SELECT unif_detect_result, department, course, date_log, time_log FROM tbl_detect_log"
-            cursor.execute(select_query)
+            query = """
+                SELECT
+                unif_detect_result, department, course, date_log,
+                time_log
+                FROM tbl_detect_log
+                WHERE 1=1
+            """
+            data = []
+            if department_filter != "ALL":
+                query += " AND department = %s"
+                data.append(department_filter)
+
+            if detectedtype_filter != "ALL":
+                query += " AND unif_detect_result = %s"
+                data.append(detectedtype_filter)
+
+            if date_filter_from and date_filter_to:
+                query += " AND date_log BETWEEN %s AND %s"
+                data.append(date_filter_from)
+                data.append(date_filter_to)
+
+            if search_text:
+                query += " AND (course LIKE %s)"
+                data.append(f"%{search_text}%")
+
+            print("Query", query)
+            print("Data", data)
+
+            query += " ORDER BY ID DESC"
+            cursor.execute(query, data)
             student_data = cursor.fetchall()
 
             # Create a new Excel workbook and select the active sheet
@@ -546,6 +580,6 @@ if __name__ == "__main__":
     MainWindow = QtWidgets.QMainWindow()
     ui = Logs()
     ui.setupUi(MainWindow)
-    ui.load_logs()
+    ui.search_logs()
     MainWindow.show()
     sys.exit(app.exec_())

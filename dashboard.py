@@ -24,7 +24,7 @@ class Ui_Dashboard(object):
         self.file_name = ""
         self.file_path = ""
         self.folder_name = "Analytics"
-        self.folder_path = rf"C:\Users\Cj\Documents\{self.folder_name}"  # Change this to your own file path
+        self.folder_path = rf"C:\Users\SampleUser\Desktop\{self.folder_name}"  # Change this to your own file path
 
     def setupUi(self, MainWindow):
         self.MainWindow = MainWindow
@@ -111,22 +111,22 @@ class Ui_Dashboard(object):
         )
         self.detectionBtn.setObjectName("detectionBtn")
 
-        self.exitBtn = QtWidgets.QPushButton(self.frame)
-        self.exitBtn.setGeometry(QtCore.QRect(40, 350, 221, 31))
+        self.logoutBtn = QtWidgets.QPushButton(self.frame)
+        self.logoutBtn.setGeometry(QtCore.QRect(40, 350, 221, 31))
         font = QtGui.QFont()
         font.setFamily("Arial")
         font.setPointSize(12)
-        self.exitBtn.setFont(font)
-        self.exitBtn.setStyleSheet(
+        self.logoutBtn.setFont(font)
+        self.logoutBtn.setStyleSheet(
             " background-color: transparent;\n" "color: white;\n" ""
         )
-        self.exitBtn.setStyleSheet(
+        self.logoutBtn.setStyleSheet(
             " background-color: transparent;\n"
             "color: white;\n"
             "text-align: left;\n"
             ""
         )
-        self.exitBtn.setObjectName("exitBtn")
+        self.logoutBtn.setObjectName("logoutBtn")
 
         self.frame_3 = QtWidgets.QFrame(self.centralwidget)
         self.frame_3.setGeometry(QtCore.QRect(261, -1, 2000, 61))
@@ -270,7 +270,7 @@ class Ui_Dashboard(object):
 
         self.detectionBtn.clicked.connect(self.open_detection)
         self.logsBtn.clicked.connect(self.open_logs)
-        self.exitBtn.clicked.connect(QtWidgets.qApp.quit)
+        self.logoutBtn.clicked.connect(QtWidgets.qApp.quit)
         self.search_logs()
 
     def retranslateUi(self, MainWindow):
@@ -285,7 +285,7 @@ class Ui_Dashboard(object):
         self.dashboardBtn.setText(_translate("MainWindow", "Dashboard"))
         self.logsBtn.setText(_translate("MainWindow", "Improper Uniform Monitoring"))
         self.detectionBtn.setText(_translate("MainWindow", "Detection"))
-        self.exitBtn.setText(_translate("MainWindow", "Exit"))
+        self.logoutBtn.setText(_translate("MainWindow", "Exit"))
 
         self.label_10.setText(_translate("MainWindow", "Dashboard"))
         self.label.setText(
