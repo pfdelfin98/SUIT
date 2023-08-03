@@ -20,6 +20,8 @@ from PyQt5.QtWidgets import (
 import openpyxl
 from datetime import datetime
 
+import login
+
 
 class Logs(object):
     def __init__(self) -> None:
@@ -261,7 +263,7 @@ class Logs(object):
             ""
         )
         self.logoutBtn.setObjectName("logoutBtn")
-        self.logoutBtn.clicked.connect(QtWidgets.qApp.quit)
+        self.logoutBtn.clicked.connect(self.open_login_page)
 
         self.frame_3 = QtWidgets.QFrame(self.centralwidget)
         self.frame_3.setGeometry(QtCore.QRect(261, -1, 2000, 61))
@@ -476,6 +478,14 @@ class Logs(object):
         self.ui = dashboard.Ui_Dashboard()
         self.ui.setupUi(self.dashboard_window)
         self.dashboard_window.show()
+
+    def open_login_page(self):
+        print("Opening Login Page...")
+        self.MainWindow.hide()
+        self.login_window = QtWidgets.QMainWindow()
+        self.ui = login.Ui_Form()
+        self.ui.setupUi(self.login_window)
+        self.login_window.show()
 
     def export_data_to_excel(self):
         # Connect to the MySQL database

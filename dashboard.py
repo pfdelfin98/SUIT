@@ -14,6 +14,8 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from docxtpl import DocxTemplate, InlineImage
 
+import login
+
 
 class Ui_Dashboard(object):
     def __init__(self) -> None:
@@ -270,7 +272,7 @@ class Ui_Dashboard(object):
 
         self.detectionBtn.clicked.connect(self.open_detection)
         self.logsBtn.clicked.connect(self.open_logs)
-        self.logoutBtn.clicked.connect(QtWidgets.qApp.quit)
+        self.logoutBtn.clicked.connect(self.open_login_page)
         self.search_logs()
 
     def retranslateUi(self, MainWindow):
@@ -285,7 +287,7 @@ class Ui_Dashboard(object):
         self.dashboardBtn.setText(_translate("MainWindow", "Dashboard"))
         self.logsBtn.setText(_translate("MainWindow", "Improper Uniform Monitoring"))
         self.detectionBtn.setText(_translate("MainWindow", "Detection"))
-        self.logoutBtn.setText(_translate("MainWindow", "Exit"))
+        self.logoutBtn.setText(_translate("MainWindow", "Logout"))
 
         self.label_10.setText(_translate("MainWindow", "Dashboard"))
         self.label.setText(
@@ -316,6 +318,14 @@ class Ui_Dashboard(object):
         self.ui.tableWidget.setParent(self.ui.centralwidget)
         self.ui.load_logs()
         self.logs_window.show()
+
+    def open_login_page(self):
+        print("Opening Login Page...")
+        self.MainWindow.hide()
+        self.login_window = QtWidgets.QMainWindow()
+        self.ui = login.Ui_Form()
+        self.ui.setupUi(self.login_window)
+        self.login_window.show()
 
     def search_logs(self):
         # Get the selected department and filter
