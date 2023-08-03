@@ -207,16 +207,34 @@ class Ui_Dashboard(object):
         )
         self.exportDocxBtn.clicked.connect(self.export_data_to_docx)
 
-        # self.available_filters = {
-        #     "ALL": 0,
-        #     "Daily": datetime.now().day,
-        #     "Weekly": datetime.now().isocalendar()[1],
-        #     "Monthly": datetime.now().month,
-        #     "Yearly": datetime.now().year,
-        # }
+        # Filter
+        self.available_filters = {
+            "ALL": 0,
+            "Daily": [datetime.now().day, "day"],
+            "Weekly": [datetime.now().isocalendar()[1], "week"],
+            "Monthly": [datetime.now().month, "month"],
+            "Yearly": [datetime.now().year, "year"],
+        }
+        self.filterComboBox = QtWidgets.QComboBox(self.centralwidget)
+        self.filterComboBox.setGeometry(QtCore.QRect(970, 95, 100, 30))
+        self.filterComboBox.setObjectName("filterComboBox")
+        [
+            self.filterComboBox.addItem(filter)
+            for filter in self.available_filters.keys()
+        ]
+        self.filterComboBox.setCurrentIndex(0)
+        self.filterComboBox.currentTextChanged.connect(self.search_logs)
+
+        self.filterLabel = QtWidgets.QLabel(self.centralwidget)
+        self.filterLabel.setGeometry(QtCore.QRect(920, 95, 70, 30))
+        self.filterLabel.setObjectName("filterLabel")
+        self.filterLabel.setText("Filters:")
+
+        # Search
         self.searchComboBox = QtWidgets.QComboBox(self.centralwidget)
         self.searchComboBox.setGeometry(QtCore.QRect(1180, 95, 200, 30))
         self.searchComboBox.setObjectName("searchComboBox")
+        self.searchComboBox.addItem("ALL")
         self.searchComboBox.addItem("CABEIHM")
         self.searchComboBox.addItem("CAS")
         self.searchComboBox.addItem("CICS")
@@ -224,6 +242,7 @@ class Ui_Dashboard(object):
         self.searchComboBox.addItem("CONAHS")
         self.searchComboBox.addItem("CTE")
         self.searchComboBox.addItem("LABORATORY SCHOOL")
+        self.searchComboBox.setCurrentIndex(0)
         self.searchComboBox.currentTextChanged.connect(self.search_logs)
 
         self.searchLabel = QtWidgets.QLabel(self.centralwidget)
@@ -252,6 +271,7 @@ class Ui_Dashboard(object):
         self.detectionBtn.clicked.connect(self.open_detection)
         self.logsBtn.clicked.connect(self.open_logs)
         self.exitBtn.clicked.connect(QtWidgets.qApp.quit)
+        self.search_logs()
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -298,7 +318,9 @@ class Ui_Dashboard(object):
         self.logs_window.show()
 
     def search_logs(self):
+        # Get the selected department and filter
         self.selected_department = self.searchComboBox.currentText()
+        self.selected_filter = self.filterComboBox.currentText()
         current_date = datetime.now().date()
 
         # Connect to the MySQL database
@@ -312,7 +334,14 @@ class Ui_Dashboard(object):
         try:
             # Execute the query and fetch the course and gender data
             cursor = connection.cursor()
-            query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' GROUP BY course"
+            if self.selected_department == "ALL" and self.selected_filter == "ALL":
+                query = "SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log GROUP BY department"
+            elif self.selected_department == "ALL" and self.selected_filter != "ALL":
+                query = f"SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY department"
+            elif self.selected_department != "ALL" and self.selected_filter == "ALL":
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department= '{self.selected_department}' GROUP BY course"
+            else:
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' and {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY course"
 
             cursor.execute(query)
             if cursor.rowcount > 0:
@@ -391,11 +420,21 @@ class Ui_Dashboard(object):
         try:
             # Execute the query and fetch the gender and gender data
             cursor = connection.cursor()
-            query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' GROUP BY course"
+            categories = ("Course", "Improper Uniform", "Proper Uniform")
+            if self.selected_department == "ALL" and self.selected_filter == "ALL":
+                query = "SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log GROUP BY department"
+                categories = ("Department", "Improper Uniform", "Proper Uniform")
+            elif self.selected_department == "ALL" and self.selected_filter != "ALL":
+                query = f"SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY department"
+                categories = ("Department", "Improper Uniform", "Proper Uniform")
+            elif self.selected_department != "ALL" and self.selected_filter == "ALL":
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department= '{self.selected_department}' GROUP BY course"
+            else:
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' and {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY course"
+
             cursor.execute(query)
             chart_data = cursor.fetchall()
 
-            categories = ("Course", "Improper Uniform", "Proper Uniform")
             rows = [categories]  # Column headers for excel file
             for row in chart_data:
                 rows.append(row)
@@ -428,9 +467,7 @@ class Ui_Dashboard(object):
             # Save the Excel file
             current_datetime = datetime.now()
             formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
-            self.file_name = (
-                f"Analytics_{self.selected_department}_{formatted_datetime}.xlsx"
-            )
+            self.file_name = f"{self.selected_filter}_Analytics_for_{self.selected_department}_{formatted_datetime}.xlsx"
 
             # Save the Excel file inside the "folder_path" folder
             self.file_path = rf"{self.folder_path}\{self.file_name}"
@@ -487,6 +524,8 @@ class Ui_Dashboard(object):
 
         self.draw_bar_graph(ax)
 
+        self.filterComboBox.setCurrentIndex(0)
+        self.searchComboBox.setCurrentIndex(0)
         # Save the plot image
         chart_img = self.figuretoimage(plt.gcf())
         self.generate_docx(chart_img)
@@ -496,7 +535,7 @@ class Ui_Dashboard(object):
         from PIL import Image
 
         buf = io.BytesIO()
-        figure.savefig(buf, bbox_inches="tight", dpi=300)
+        figure.savefig(buf, bbox_inches="tight", dpi=400)
         buf.seek(0)
         img = Image.open(buf)
         return img
@@ -507,21 +546,24 @@ class Ui_Dashboard(object):
 
         newimg = chart_img.resize((450, 250))
         newimg.save("chart.png")
+        try:
+            doc = DocxTemplate(r"templates\report.docx")
+            dic = {
+                "graph": InlineImage(doc, "chart.png"),
+                "date": now.strftime("%m/%d/%Y, %H:%M:%S"),
+            }
 
-        doc = DocxTemplate(r"templates\report.docx")
-        dic = {
-            "graph": InlineImage(doc, "chart.png"),
-            "date": now.strftime("%m/%d/%Y, %H:%M:%S"),
-        }
-
-        doc.render(dic)
-        document_name = (
-            f"Document_Analytics_{self.selected_department}_{datetime_str}.docx"
-        )
-        document_path = rf"{self.folder_path}\{document_name}"
-        if not os.path.exists(self.folder_path):
-            os.makedirs(self.folder_path)
-        doc.save(document_path)
+            doc.render(dic)
+            document_name = (
+                f"Document_Analytics_{self.selected_department}_{datetime_str}.docx"
+            )
+            document_path = rf"{self.folder_path}\{document_name}"
+            if not os.path.exists(self.folder_path):
+                os.makedirs(self.folder_path)
+            doc.save(document_path)
+            print("Dashboard All Data exported to Word successfully!")
+        except Exception as e:
+            print("Error exporting data to Word:", str(e))
 
 
 if __name__ == "__main__":
