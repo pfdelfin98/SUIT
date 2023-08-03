@@ -35,7 +35,7 @@ class Logs(object):
         self.folder_path = rf"C:\Users\SampleUser\Desktop\{self.folder_name}"  # Change this to your own file path
 
         # Export and Delete Analytics Every Monday (Check Every Second)
-        self.timer_second = 5
+        self.timer_second = 1
         self.timer = QTimer()
         self.timer.timeout.connect(self.analytics_reset_export_check)
         self.timer.start(self.timer_second * 1000)  # Execute every set self.time_second

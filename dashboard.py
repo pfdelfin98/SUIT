@@ -1,5 +1,7 @@
 import sys
 import os
+
+import matplotlib
 import logs
 import numpy as np
 import pymysql
@@ -21,6 +23,8 @@ class Ui_Dashboard(object):
     def __init__(self) -> None:
         self.logs_sent = False
         self.existing = False
+        self.figure = None
+        self.ax = None
 
         # For Excel File
         self.file_name = ""
@@ -243,7 +247,6 @@ class Ui_Dashboard(object):
         self.searchComboBox.addItem("CET")
         self.searchComboBox.addItem("CONAHS")
         self.searchComboBox.addItem("CTE")
-        self.searchComboBox.addItem("LABORATORY SCHOOL")
         self.searchComboBox.setCurrentIndex(0)
         self.searchComboBox.currentTextChanged.connect(self.search_logs)
 
@@ -316,7 +319,7 @@ class Ui_Dashboard(object):
         self.ui = logs.Logs()
         self.ui.setupUi(self.logs_window)
         self.ui.tableWidget.setParent(self.ui.centralwidget)
-        self.ui.load_logs()
+        self.ui.search_logs()
         self.logs_window.show()
 
     def open_login_page(self):
@@ -328,6 +331,10 @@ class Ui_Dashboard(object):
         self.login_window.show()
 
     def search_logs(self):
+        if self.figure and self.ax:
+            self.figure.clear(True)
+            self.ax.clear()
+            self.barChartLayout.removeItem(self.barChartLayout.itemAt(0))
         # Get the selected department and filter
         self.selected_department = self.searchComboBox.currentText()
         self.selected_filter = self.filterComboBox.currentText()
@@ -371,11 +378,11 @@ class Ui_Dashboard(object):
         for i in reversed(range(self.barChartLayout.count())):
             self.barChartLayout.itemAt(i).widget().setParent(None)
 
-        figure, ax = plt.subplots()
+        self.figure, self.ax = plt.subplots()
 
-        self.draw_bar_graph(ax)
+        self.draw_bar_graph(self.ax)
 
-        canvas = FigureCanvas(figure)
+        canvas = FigureCanvas(self.figure)
 
         self.barChartLayout.addWidget(canvas)
 
@@ -498,7 +505,12 @@ class Ui_Dashboard(object):
             connection.close()
 
     def export_data_to_docx(self):
-        self.selected_department = "ALL"
+        if self.figure and self.ax:
+            self.figure.clear(True)
+            self.ax.clear()
+            self.barChartLayout.removeItem(self.barChartLayout.itemAt(0))
+        self.selected_department = self.searchComboBox.currentText()
+        self.selected_filter = self.filterComboBox.currentText()
         # Connect to the MySQL database
         connection = pymysql.connect(
             host="localhost", user="root", password="", database="suit_db"
@@ -530,12 +542,15 @@ class Ui_Dashboard(object):
         for i in reversed(range(self.barChartLayout.count())):
             self.barChartLayout.itemAt(i).widget().setParent(None)
 
-        figure, ax = plt.subplots()
+        # self.barChartLayout.removeItem(self.barChartLayout.itemAt(0))
 
-        self.draw_bar_graph(ax)
+        self.figure, self.ax = plt.subplots()
+
+        self.draw_bar_graph(self.ax)
 
         self.filterComboBox.setCurrentIndex(0)
         self.searchComboBox.setCurrentIndex(0)
+
         # Save the plot image
         chart_img = self.figuretoimage(plt.gcf())
         self.generate_docx(chart_img)
