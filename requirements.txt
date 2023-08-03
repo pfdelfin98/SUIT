@@ -1,4 +1,5 @@
 cvzone==1.5.6
+docxtpl==0.16.7
 numpy==1.24.3
 opencv_python==4.7.0.72
 openpyxl==3.1.2

@@ -1,27 +1,26 @@
 import sys
 import os
 import dashboard
-import numpy as np
 import pymysql
 from datetime import datetime, timedelta
 from PyQt5.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
-    QLabel,
     QHeaderView,
 )
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QPixmap
+
 from PyQt5.QtCore import QTimer
 from datetime import datetime, timedelta
-from PyQt5.QtCore import Qt
+
 from PyQt5.QtWidgets import (
     QTableWidget,
     QScrollArea,
 )
 import openpyxl
 from datetime import datetime
-import matplotlib.pyplot as plt
+
+import login
 
 
 class Logs(object):
@@ -32,42 +31,145 @@ class Logs(object):
         # For Excel File
         self.file_name = ""
         self.file_path = ""
-        self.folder_name = "logs"
+        self.folder_name = "Logs"
         self.folder_path = rf"C:\Users\SampleUser\Desktop\{self.folder_name}"  # Change this to your own file path
+
+        # Export and Delete Analytics Every Monday (Check Every Second)
+        self.timer_second = 5
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.analytics_reset_export_check)
+        self.timer.start(self.timer_second * 1000)  # Execute every set self.time_second
+        self.current_tbl_row_count = 0
+
+    # Auto Refresh Table
+    def analytics_reset_export_check(self):
+        self.check_if_logs_has_new_value()
+        print(self.current_tbl_row_count)
+
+    def check_if_logs_has_new_value(self):
+        connection = pymysql.connect(
+            host="localhost", user="root", password="", db="suit_db"
+        )
+        cursor = connection.cursor()
+
+        query = "SELECT count(id) FROM tbl_detect_log"
+        cursor.execute(query)
+        query_value = cursor.fetchone()[0]
+
+        if query_value > self.current_tbl_row_count:
+            self.search_logs()
+        self.current_tbl_row_count = query_value
+        cursor.close()
 
     def setupUi(self, MainWindow):
         self.MainWindow = MainWindow
-        # MainWindow.setWindowFlags(
-        #     MainWindow.windowFlags()
-        #     & ~QtCore.Qt.WindowMinimizeButtonHint
-        #     & ~QtCore.Qt.WindowMaximizeButtonHint
-        # )
 
         MainWindow.setObjectName("MainWindow")
         self.MainWindow.showMaximized()
-        MainWindow.setWindowFlags(
-            MainWindow.windowFlags()
-            & ~QtCore.Qt.WindowCloseButtonHint  # Remove the close button
-        )
+
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         # Add table widget
         self.tableWidget = QTableWidget(self.centralwidget)
-        self.tableWidget.setGeometry(QtCore.QRect(310, 150, 1240, 450))
+        self.tableWidget.setGeometry(QtCore.QRect(310, 150, 1240, 900))
         self.tableWidget.setObjectName("tableWidget")
         self.tableWidget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        # search bar
-        self.searchLineEdit = QtWidgets.QLineEdit(self.centralwidget)
-        self.searchLineEdit.setGeometry(QtCore.QRect(1180, 95, 200, 30))
-        self.searchLineEdit.setObjectName("searchLineEdit")
-        self.searchLineEdit.textChanged.connect(self.search_logs)
 
+        # Department Filter
+        self.departments = ["ALL", "CABEIHM", "CAS", "CICS", "CET", "CONAHS", "CTE"]
+
+        self.deparmentLabel = QtWidgets.QLabel(self.centralwidget)
+        self.deparmentLabel.setGeometry(QtCore.QRect(600, 95, 70, 30))
+        self.deparmentLabel.setObjectName("deparmentLabel")
+        self.deparmentLabel.setText("Deparment:")
+
+        self.deparmentComboBox = QtWidgets.QComboBox(self.centralwidget)
+        self.deparmentComboBox.setGeometry(QtCore.QRect(670, 95, 100, 30))
+        self.deparmentComboBox.setObjectName("deparmentComboBox")
+        self.deparmentComboBox.addItems(self.departments)
+        self.deparmentComboBox.currentTextChanged.connect(self.search_logs)
+
+        # Detected Type Filter
+        self.detected_type = ["ALL", "PROPER", "IMPROPER"]
+
+        self.detectedtypeLabel = QtWidgets.QLabel(self.centralwidget)
+        self.detectedtypeLabel.setGeometry(QtCore.QRect(800, 95, 70, 30))
+        self.detectedtypeLabel.setObjectName("detectedtypeLabel")
+        self.detectedtypeLabel.setText("Type:")
+
+        self.detectedtypeComboBox = QtWidgets.QComboBox(self.centralwidget)
+        self.detectedtypeComboBox.setGeometry(QtCore.QRect(840, 95, 100, 30))
+        self.detectedtypeComboBox.setObjectName("detectedtypeComboBox")
+        self.detectedtypeComboBox.addItems(self.detected_type)
+        self.detectedtypeComboBox.currentTextChanged.connect(self.search_logs)
+
+        # Date From Filter
+        self.datefromLabel = QtWidgets.QLabel(self.centralwidget)
+        self.datefromLabel.setGeometry(QtCore.QRect(960, 95, 70, 30))
+        self.datefromLabel.setObjectName("datefromLabel")
+        self.datefromLabel.setText("Date From:")
+
+        self.datefromDateEdit = QtWidgets.QDateEdit(
+            self.centralwidget, calendarPopup=True
+        )
+        self.datefromDateEdit.setGeometry(QtCore.QRect(1030, 95, 80, 30))
+        self.datefromDateEdit.setObjectName("datefromDateEdit")
+        self.datefromDateEdit.setDateTime(QtCore.QDateTime.currentDateTime())
+        self.datefromDateEdit.dateChanged.connect(self.search_logs)
+
+        # Date To Filter
+        self.datetoLabel = QtWidgets.QLabel(self.centralwidget)
+        self.datetoLabel.setGeometry(QtCore.QRect(1130, 95, 70, 30))
+        self.datetoLabel.setObjectName("datetoLabel")
+        self.datetoLabel.setText("Date To:")
+
+        self.datetoDateEdit = QtWidgets.QDateEdit(
+            self.centralwidget, calendarPopup=True
+        )
+        self.datetoDateEdit.setGeometry(QtCore.QRect(1190, 95, 80, 30))
+        self.datetoDateEdit.setObjectName("datetoDateEdit")
+        self.datetoDateEdit.setDateTime(QtCore.QDateTime.currentDateTime())
+        self.datetoDateEdit.dateChanged.connect(self.search_logs)
+
+        # search bar
         self.search_has_input = False
 
         self.searchLabel = QtWidgets.QLabel(self.centralwidget)
-        self.searchLabel.setGeometry(QtCore.QRect(1130, 95, 70, 30))
+        self.searchLabel.setGeometry(QtCore.QRect(1310, 95, 70, 30))
         self.searchLabel.setObjectName("searchLabel")
         self.searchLabel.setText("Search:")
+
+        self.searchLineEdit = QtWidgets.QLineEdit(self.centralwidget)
+        self.searchLineEdit.setGeometry(QtCore.QRect(1360, 95, 150, 30))
+        self.searchLineEdit.setObjectName("searchLineEdit")
+        self.searchLineEdit.textChanged.connect(self.search_logs)
+
+        self.exportDataBtn = QtWidgets.QPushButton(self.centralwidget)
+        self.exportDataBtn.setGeometry(QtCore.QRect(1550, 90, 121, 40))
+        font = QtGui.QFont()
+        font.setFamily("Arial")
+        font.setPointSize(8)
+        self.exportDataBtn.setFont(font)
+        self.exportDataBtn.setObjectName("exportDataBtn")
+        self.exportDataBtn.setText("Export Data")
+        self.exportDataBtn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #dc3545;
+                border: none;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-family: Arial;
+                font-size: 8pt;
+            }
+
+            QPushButton:hover {
+                background-color: #c82333;
+            }
+            """
+        )
+        self.exportDataBtn.clicked.connect(self.export_data_to_excel)
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -77,7 +179,7 @@ class Logs(object):
         self.frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame.setObjectName("frame")
-        self.label_4 = QtWidgets.QLabel( self.frame)
+        self.label_4 = QtWidgets.QLabel(self.frame)
         self.label_4.setGeometry(QtCore.QRect(80, 20, 101, 91))
         self.label_4.setText("")
         self.label_4.setPixmap(QtGui.QPixmap("img/logo.png"))
@@ -145,26 +247,23 @@ class Logs(object):
         )
         self.detectionBtn.setObjectName("detectionBtn")
 
-        self.exitBtn = QtWidgets.QPushButton(self.frame)
-        self.exitBtn.setGeometry(QtCore.QRect(40, 350, 221, 31))
+        self.logoutBtn = QtWidgets.QPushButton(self.frame)
+        self.logoutBtn.setGeometry(QtCore.QRect(40, 350, 221, 31))
         font = QtGui.QFont()
         font.setFamily("Arial")
         font.setPointSize(12)
-        self.exitBtn.setFont(font)
-        self.exitBtn.setStyleSheet(
+        self.logoutBtn.setFont(font)
+        self.logoutBtn.setStyleSheet(
             " background-color: transparent;\n" "color: white;\n" ""
         )
-        self.exitBtn.setStyleSheet(
+        self.logoutBtn.setStyleSheet(
             " background-color: transparent;\n"
             "color: white;\n"
             "text-align: left;\n"
             ""
         )
-        self.exitBtn.setObjectName("exitBtn")
-        self.exitBtn.clicked.connect(QtWidgets.qApp.quit)
-
-
-
+        self.logoutBtn.setObjectName("logoutBtn")
+        self.logoutBtn.clicked.connect(self.open_login_page)
 
         self.frame_3 = QtWidgets.QFrame(self.centralwidget)
         self.frame_3.setGeometry(QtCore.QRect(261, -1, 2000, 61))
@@ -179,20 +278,7 @@ class Logs(object):
         font.setPointSize(12)
         self.label.setFont(font)
         self.label.setObjectName("label")
-        
-        # self.frame_3 = QtWidgets.QFrame(self.centralwidget)
-        # self.frame_3.setGeometry(QtCore.QRect(261, -1, 2000, 61))
-        # self.frame_3.setStyleSheet("background-color: rgb(255, 255, 255);")
-        # self.frame_3.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        # self.frame_3.setFrameShadow(QtWidgets.QFrame.Raised)
-        # self.frame_3.setObjectName("frame_3")
-        # self.label = QtWidgets.QLabel(self.frame_3)
-        # self.label.setGeometry(QtCore.QRect(20, 10, 671, 41))
-        # font = QtGui.QFont()
-        # font.setFamily("Arial")
-        # font.setPointSize(12)
-        # self.label.setFont(font)
-        # self.label.setObjectName("label")
+
         self.label_10 = QtWidgets.QLabel(self.centralwidget)
         self.label_10.setGeometry(QtCore.QRect(310, 90, 270, 51))
         font = QtGui.QFont()
@@ -203,33 +289,6 @@ class Logs(object):
         self.label_10.setFont(font)
         self.label_10.setStyleSheet("color:black;")
         self.label_10.setObjectName("label_10")
-
-        self.exportDataBtn = QtWidgets.QPushButton(self.centralwidget)
-        self.exportDataBtn.setGeometry(QtCore.QRect(1420, 90, 121, 40))
-        font = QtGui.QFont()
-        font.setFamily("Arial")
-        font.setPointSize(8)
-        self.exportDataBtn.setFont(font)
-        self.exportDataBtn.setObjectName("exportDataBtn")
-        self.exportDataBtn.setText("Export Data")
-        self.exportDataBtn.setStyleSheet(
-            """
-            QPushButton {
-                background-color: #dc3545;  
-                border: none;
-                color: white;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-family: Arial;
-                font-size: 8pt;
-            }
-
-            QPushButton:hover {
-                background-color: #c82333;  
-            }
-            """
-        )
-        self.exportDataBtn.clicked.connect(self.export_data_to_excel)
 
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
@@ -257,8 +316,7 @@ class Logs(object):
         self.dashboardBtn.setText(_translate("MainWindow", "Dashboard"))
         self.logsBtn.setText(_translate("MainWindow", "Improper Uniform Monitoring"))
         self.detectionBtn.setText(_translate("MainWindow", "Detection"))
-        self.exitBtn.setText(_translate("MainWindow", "Exit"))
-
+        self.logoutBtn.setText(_translate("MainWindow", "Logout"))
 
         self.label.setText(
             _translate(
@@ -272,6 +330,8 @@ class Logs(object):
         if self.search_has_input:
             return
 
+        print("Executed load_logs")
+
         connection = pymysql.connect(
             host="localhost", user="root", password="", db="suit_db"
         )
@@ -282,7 +342,7 @@ class Logs(object):
         cursor.execute(delete_query, (week_ago.date(),))
         connection.commit()
 
-        query = "SELECT  unif_detect_result, department, course, date_log, time_log FROM tbl_detect_log"
+        query = "SELECT  unif_detect_result, department, course, date_log, time_log FROM tbl_detect_log ORDER BY ID DESC"
         cursor.execute(query)
         logs = cursor.fetchall()
 
@@ -304,7 +364,6 @@ class Logs(object):
         for row, log in enumerate(logs):
             unif_detect_reuslt, department, course, date_log, time_log = log
 
-
             self.tableWidget.setItem(row, 0, QTableWidgetItem(str(unif_detect_reuslt)))
             self.tableWidget.setItem(row, 1, QTableWidgetItem(str(department)))
             self.tableWidget.setItem(row, 2, QTableWidgetItem(str(course)))
@@ -313,9 +372,19 @@ class Logs(object):
 
         cursor.close()
 
-        # Schedule the next update after 1 second
-        # QTimer.singleShot(1000, self.load_logs)
-    def search_logs(self, search_text):
+    def search_logs(self):
+        print("Department: ", self.deparmentComboBox.currentText())
+        print("Type: ", self.detectedtypeComboBox.currentText())
+        print("Date From: ", self.datefromDateEdit.date().toString("yyyy-MM-dd"))
+        print("Date To: ", self.datefromDateEdit.date().toString("yyyy-MM-dd"))
+
+        department_filter = self.deparmentComboBox.currentText()
+        detectedtype_filter = self.detectedtypeComboBox.currentText()
+        date_filter_from = self.datefromDateEdit.date().toString("yyyy-MM-dd")
+        date_filter_to = self.datetoDateEdit.date().toString("yyyy-MM-dd")
+
+        search_text = self.searchLineEdit.text()
+
         connection = pymysql.connect(
             host="localhost", user="root", password="", db="suit_db"
         )
@@ -325,20 +394,41 @@ class Logs(object):
             self.search_has_input = True
         else:
             self.search_has_input = False
-            QTimer.singleShot(1000, self.load_logs)
+            # QTimer.singleShot(1000, self.load_logs)
 
         query = """
         SELECT
            unif_detect_result, department, course, date_log,
            time_log
         FROM tbl_detect_log
-        WHERE unif_detect_result LIKE %s
-            OR department LIKE %s OR course LIKE %s
-            OR time_log LIKE %s OR date_log LIKE %s
+        WHERE 1=1
         """
-        search_pattern = f"%{search_text}%"  # Add wildcards for partial matching
+        data = []
+        if department_filter != "ALL":
+            query += " AND department = %s"
+            data.append(department_filter)
+
+        if detectedtype_filter != "ALL":
+            query += " AND unif_detect_result = %s"
+            data.append(detectedtype_filter)
+
+        if date_filter_from and date_filter_to:
+            query += " AND date_log BETWEEN %s AND %s"
+            data.append(date_filter_from)
+            data.append(date_filter_to)
+
+        if search_text:
+            query += " AND (course LIKE %s)"
+            data.append(f"%{search_text}%")
+
+        query += " ORDER BY ID DESC"
+
+        print("Query", query)
+        print("Data", data)
+
         cursor.execute(
-            query, (search_pattern, search_pattern, search_pattern, search_pattern, search_pattern)
+            query,
+            data,
         )
         logs = cursor.fetchall()
 
@@ -360,7 +450,7 @@ class Logs(object):
 
         for row, log in enumerate(logs):
             unif_detect_result, department, course, date_log, time_log = log
-    
+
             self.tableWidget.setItem(row, 0, QTableWidgetItem(str(unif_detect_result)))
             self.tableWidget.setItem(row, 1, QTableWidgetItem(str(department)))
             self.tableWidget.setItem(row, 2, QTableWidgetItem(str(course)))
@@ -372,7 +462,7 @@ class Logs(object):
 
     def start_loading_students(self):
         # Start loading the students initially
-        self.load_logs()
+        self.search_logs()
 
     def open_detection(self):
         from UniformDetection import UniformDetectionWindow
@@ -389,19 +479,61 @@ class Logs(object):
         self.ui.setupUi(self.dashboard_window)
         self.dashboard_window.show()
 
+    def open_login_page(self):
+        print("Opening Login Page...")
+        self.MainWindow.hide()
+        self.login_window = QtWidgets.QMainWindow()
+        self.ui = login.Ui_Form()
+        self.ui.setupUi(self.login_window)
+        self.login_window.show()
+
     def export_data_to_excel(self):
         # Connect to the MySQL database
         connection = pymysql.connect(
             host="localhost", user="root", password="", database="suit_db"
         )
+        department_filter = self.deparmentComboBox.currentText()
+        detectedtype_filter = self.detectedtypeComboBox.currentText()
+        date_filter_from = self.datefromDateEdit.date().toString("yyyy-MM-dd")
+        date_filter_to = self.datetoDateEdit.date().toString("yyyy-MM-dd")
+
+        search_text = self.searchLineEdit.text()
 
         try:
             # Create a cursor object to execute SQL queries
             cursor = connection.cursor()
 
             # Retrieve data from the tbl_student table
-            select_query = "SELECT unif_detect_result, department, course, date_log, time_log FROM tbl_detect_log"
-            cursor.execute(select_query)
+            query = """
+                SELECT
+                unif_detect_result, department, course, date_log,
+                time_log
+                FROM tbl_detect_log
+                WHERE 1=1
+            """
+            data = []
+            if department_filter != "ALL":
+                query += " AND department = %s"
+                data.append(department_filter)
+
+            if detectedtype_filter != "ALL":
+                query += " AND unif_detect_result = %s"
+                data.append(detectedtype_filter)
+
+            if date_filter_from and date_filter_to:
+                query += " AND date_log BETWEEN %s AND %s"
+                data.append(date_filter_from)
+                data.append(date_filter_to)
+
+            if search_text:
+                query += " AND (course LIKE %s)"
+                data.append(f"%{search_text}%")
+
+            print("Query", query)
+            print("Data", data)
+
+            query += " ORDER BY ID DESC"
+            cursor.execute(query, data)
             student_data = cursor.fetchall()
 
             # Create a new Excel workbook and select the active sheet
@@ -458,6 +590,6 @@ if __name__ == "__main__":
     MainWindow = QtWidgets.QMainWindow()
     ui = Logs()
     ui.setupUi(MainWindow)
-    ui.load_logs()
+    ui.search_logs()
     MainWindow.show()
     sys.exit(app.exec_())

@@ -3,25 +3,18 @@ import os
 import logs
 import numpy as np
 import pymysql
-from datetime import datetime, timedelta
-from PyQt5.QtWidgets import (
-    QTableWidget,
-    QTableWidgetItem,
-    QLabel,
-)
+from datetime import datetime
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QTimer
-from datetime import datetime, timedelta
-from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QTableWidget,
     QScrollArea,
 )
 import openpyxl
 from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from docxtpl import DocxTemplate, InlineImage
+
+import login
 
 
 class Ui_Dashboard(object):
@@ -33,29 +26,16 @@ class Ui_Dashboard(object):
         self.file_name = ""
         self.file_path = ""
         self.folder_name = "Analytics"
-        self.folder_path = rf"C:\Users\Public\Documents\{self.folder_name}"  # Change this to your own file path
+        self.folder_path = rf"C:\Users\SampleUser\Desktop\{self.folder_name}"  # Change this to your own file path
 
     def setupUi(self, MainWindow):
         self.MainWindow = MainWindow
-        # MainWindow.setWindowFlags(
-        #     MainWindow.windowFlags()
-        #     & ~QtCore.Qt.WindowMinimizeButtonHint
-        #     & ~QtCore.Qt.WindowMaximizeButtonHint
-        # )
 
         MainWindow.setObjectName("MainWindow")
-        # MainWindow.resize(1200, 700)
         self.MainWindow.showMaximized()
-        # MainWindow.setWindowFlags(
-        #     MainWindow.windowFlags()
-        #     & ~QtCore.Qt.WindowCloseButtonHint  # Remove the close button
-        # )
+
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-        # Add table widget
-        # self.tableWidget = QTableWidget(self.centralwidget)
-        # self.tableWidget.setGeometry(QtCore.QRect(310, 150, 850, 450))
-        # self.tableWidget.setObjectName("tableWidget")
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -133,22 +113,22 @@ class Ui_Dashboard(object):
         )
         self.detectionBtn.setObjectName("detectionBtn")
 
-        self.exitBtn = QtWidgets.QPushButton(self.frame)
-        self.exitBtn.setGeometry(QtCore.QRect(40, 350, 221, 31))
+        self.logoutBtn = QtWidgets.QPushButton(self.frame)
+        self.logoutBtn.setGeometry(QtCore.QRect(40, 350, 221, 31))
         font = QtGui.QFont()
         font.setFamily("Arial")
         font.setPointSize(12)
-        self.exitBtn.setFont(font)
-        self.exitBtn.setStyleSheet(
+        self.logoutBtn.setFont(font)
+        self.logoutBtn.setStyleSheet(
             " background-color: transparent;\n" "color: white;\n" ""
         )
-        self.exitBtn.setStyleSheet(
+        self.logoutBtn.setStyleSheet(
             " background-color: transparent;\n"
             "color: white;\n"
             "text-align: left;\n"
             ""
         )
-        self.exitBtn.setObjectName("exitBtn")
+        self.logoutBtn.setObjectName("logoutBtn")
 
         self.frame_3 = QtWidgets.QFrame(self.centralwidget)
         self.frame_3.setGeometry(QtCore.QRect(261, -1, 2000, 61))
@@ -186,7 +166,7 @@ class Ui_Dashboard(object):
         self.exportDataBtn.setStyleSheet(
             """
             QPushButton {
-                background-color: #dc3545;  
+                background-color: #dc3545;
                 border: none;
                 color: white;
                 padding: 8px 16px;
@@ -196,15 +176,67 @@ class Ui_Dashboard(object):
             }
 
             QPushButton:hover {
-                background-color: #c82333;  
+                background-color: #c82333;
             }
             """
         )
         self.exportDataBtn.clicked.connect(self.export_data_to_excel)
 
+        self.exportDocxBtn = QtWidgets.QPushButton(self.centralwidget)
+        self.exportDocxBtn.setGeometry(QtCore.QRect(1550, 90, 121, 40))
+        font = QtGui.QFont()
+        font.setFamily("Arial")
+        font.setPointSize(8)
+        self.exportDocxBtn.setFont(font)
+        self.exportDocxBtn.setObjectName("exportDocxBtn")
+        self.exportDocxBtn.setText("Export Document")
+        self.exportDocxBtn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #dc3545;
+                border: none;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-family: Arial;
+                font-size: 8pt;
+            }
+
+            QPushButton:hover {
+                background-color: #c82333;
+            }
+            """
+        )
+        self.exportDocxBtn.clicked.connect(self.export_data_to_docx)
+
+        # Filter
+        self.available_filters = {
+            "ALL": 0,
+            "Daily": [datetime.now().day, "day"],
+            "Weekly": [datetime.now().isocalendar()[1], "week"],
+            "Monthly": [datetime.now().month, "month"],
+            "Yearly": [datetime.now().year, "year"],
+        }
+        self.filterComboBox = QtWidgets.QComboBox(self.centralwidget)
+        self.filterComboBox.setGeometry(QtCore.QRect(970, 95, 100, 30))
+        self.filterComboBox.setObjectName("filterComboBox")
+        [
+            self.filterComboBox.addItem(filter)
+            for filter in self.available_filters.keys()
+        ]
+        self.filterComboBox.setCurrentIndex(0)
+        self.filterComboBox.currentTextChanged.connect(self.search_logs)
+
+        self.filterLabel = QtWidgets.QLabel(self.centralwidget)
+        self.filterLabel.setGeometry(QtCore.QRect(920, 95, 70, 30))
+        self.filterLabel.setObjectName("filterLabel")
+        self.filterLabel.setText("Filters:")
+
+        # Search
         self.searchComboBox = QtWidgets.QComboBox(self.centralwidget)
         self.searchComboBox.setGeometry(QtCore.QRect(1180, 95, 200, 30))
         self.searchComboBox.setObjectName("searchComboBox")
+        self.searchComboBox.addItem("ALL")
         self.searchComboBox.addItem("CABEIHM")
         self.searchComboBox.addItem("CAS")
         self.searchComboBox.addItem("CICS")
@@ -212,6 +244,7 @@ class Ui_Dashboard(object):
         self.searchComboBox.addItem("CONAHS")
         self.searchComboBox.addItem("CTE")
         self.searchComboBox.addItem("LABORATORY SCHOOL")
+        self.searchComboBox.setCurrentIndex(0)
         self.searchComboBox.currentTextChanged.connect(self.search_logs)
 
         self.searchLabel = QtWidgets.QLabel(self.centralwidget)
@@ -239,7 +272,8 @@ class Ui_Dashboard(object):
 
         self.detectionBtn.clicked.connect(self.open_detection)
         self.logsBtn.clicked.connect(self.open_logs)
-        self.exitBtn.clicked.connect(QtWidgets.qApp.quit)
+        self.logoutBtn.clicked.connect(self.open_login_page)
+        self.search_logs()
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -253,7 +287,7 @@ class Ui_Dashboard(object):
         self.dashboardBtn.setText(_translate("MainWindow", "Dashboard"))
         self.logsBtn.setText(_translate("MainWindow", "Improper Uniform Monitoring"))
         self.detectionBtn.setText(_translate("MainWindow", "Detection"))
-        self.exitBtn.setText(_translate("MainWindow", "Exit"))
+        self.logoutBtn.setText(_translate("MainWindow", "Logout"))
 
         self.label_10.setText(_translate("MainWindow", "Dashboard"))
         self.label.setText(
@@ -285,8 +319,18 @@ class Ui_Dashboard(object):
         self.ui.load_logs()
         self.logs_window.show()
 
+    def open_login_page(self):
+        print("Opening Login Page...")
+        self.MainWindow.hide()
+        self.login_window = QtWidgets.QMainWindow()
+        self.ui = login.Ui_Form()
+        self.ui.setupUi(self.login_window)
+        self.login_window.show()
+
     def search_logs(self):
+        # Get the selected department and filter
         self.selected_department = self.searchComboBox.currentText()
+        self.selected_filter = self.filterComboBox.currentText()
         current_date = datetime.now().date()
 
         # Connect to the MySQL database
@@ -300,7 +344,14 @@ class Ui_Dashboard(object):
         try:
             # Execute the query and fetch the course and gender data
             cursor = connection.cursor()
-            query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' GROUP BY course"
+            if self.selected_department == "ALL" and self.selected_filter == "ALL":
+                query = "SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log GROUP BY department"
+            elif self.selected_department == "ALL" and self.selected_filter != "ALL":
+                query = f"SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY department"
+            elif self.selected_department != "ALL" and self.selected_filter == "ALL":
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department= '{self.selected_department}' GROUP BY course"
+            else:
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' and {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY course"
 
             cursor.execute(query)
             if cursor.rowcount > 0:
@@ -328,9 +379,16 @@ class Ui_Dashboard(object):
 
         self.barChartLayout.addWidget(canvas)
 
-    def draw_bar_graph(self, ax):
+        # Save the plot image
+        img = self.figuretoimage(plt.gcf())
+        img.save("Plot image.png")
+
+    def draw_bar_graph(self, ax, is_department: bool = False):
         bar_width = 0.35
         x = np.arange(len(self.categories))
+        xlabel = "Courses"
+        if is_department:
+            xlabel = "Departments"
 
         ax.clear()
 
@@ -350,7 +408,7 @@ class Ui_Dashboard(object):
         )
 
         yvalue = ax.get_ybound()[1]
-        ax.set_xlabel("Courses")
+        ax.set_xlabel(xlabel)
         ax.set_ylabel("Count")
         ax.set_ybound(upper=(yvalue * 2) / 1.5)
         ax.set_title(
@@ -372,11 +430,21 @@ class Ui_Dashboard(object):
         try:
             # Execute the query and fetch the gender and gender data
             cursor = connection.cursor()
-            query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' GROUP BY course"
+            categories = ("Course", "Improper Uniform", "Proper Uniform")
+            if self.selected_department == "ALL" and self.selected_filter == "ALL":
+                query = "SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log GROUP BY department"
+                categories = ("Department", "Improper Uniform", "Proper Uniform")
+            elif self.selected_department == "ALL" and self.selected_filter != "ALL":
+                query = f"SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY department"
+                categories = ("Department", "Improper Uniform", "Proper Uniform")
+            elif self.selected_department != "ALL" and self.selected_filter == "ALL":
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department= '{self.selected_department}' GROUP BY course"
+            else:
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' and {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY course"
+
             cursor.execute(query)
             chart_data = cursor.fetchall()
 
-            categories = ("Course", "Improper Uniform", "Proper Uniform")
             rows = [categories]  # Column headers for excel file
             for row in chart_data:
                 rows.append(row)
@@ -409,9 +477,7 @@ class Ui_Dashboard(object):
             # Save the Excel file
             current_datetime = datetime.now()
             formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
-            self.file_name = (
-                f"Analytics_{self.selected_department}_{formatted_datetime}.xlsx"
-            )
+            self.file_name = f"{self.selected_filter}_Analytics_for_{self.selected_department}_{formatted_datetime}.xlsx"
 
             # Save the Excel file inside the "folder_path" folder
             self.file_path = rf"{self.folder_path}\{self.file_name}"
@@ -430,6 +496,84 @@ class Ui_Dashboard(object):
             # Close the cursor and connection
             cursor.close()
             connection.close()
+
+    def export_data_to_docx(self):
+        self.selected_department = "ALL"
+        # Connect to the MySQL database
+        connection = pymysql.connect(
+            host="localhost", user="root", password="", database="suit_db"
+        )
+        self.categories = []
+        self.improper_log_count = []
+        self.proper_log_count = []
+
+        try:
+            # Execute the query and fetch the course and gender data
+            cursor = connection.cursor()
+            query = f"SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log GROUP BY department"
+
+            cursor.execute(query)
+            if cursor.rowcount > 0:
+                for row in cursor.fetchall():
+                    course, improper_log_count, proper_log_count = row
+                    self.categories.append(course)
+                    self.improper_log_count.append(improper_log_count)
+                    self.proper_log_count.append(proper_log_count)
+
+            else:
+                self.improper_log_count = [0]
+                self.proper_log_count = [0]
+
+        finally:
+            connection.close()
+
+        for i in reversed(range(self.barChartLayout.count())):
+            self.barChartLayout.itemAt(i).widget().setParent(None)
+
+        figure, ax = plt.subplots()
+
+        self.draw_bar_graph(ax)
+
+        self.filterComboBox.setCurrentIndex(0)
+        self.searchComboBox.setCurrentIndex(0)
+        # Save the plot image
+        chart_img = self.figuretoimage(plt.gcf())
+        self.generate_docx(chart_img)
+
+    def figuretoimage(self, figure):
+        import io
+        from PIL import Image
+
+        buf = io.BytesIO()
+        figure.savefig(buf, bbox_inches="tight", dpi=400)
+        buf.seek(0)
+        img = Image.open(buf)
+        return img
+
+    def generate_docx(self, chart_img):
+        now = datetime.now()
+        datetime_str = now.strftime("%m-%d-%Y-%H-%M-%S")
+
+        newimg = chart_img.resize((450, 250))
+        newimg.save("chart.png")
+        try:
+            doc = DocxTemplate(r"templates\report.docx")
+            dic = {
+                "graph": InlineImage(doc, "chart.png"),
+                "date": now.strftime("%m/%d/%Y, %H:%M:%S"),
+            }
+
+            doc.render(dic)
+            document_name = (
+                f"Document_Analytics_{self.selected_department}_{datetime_str}.docx"
+            )
+            document_path = rf"{self.folder_path}\{document_name}"
+            if not os.path.exists(self.folder_path):
+                os.makedirs(self.folder_path)
+            doc.save(document_path)
+            print("Dashboard All Data exported to Word successfully!")
+        except Exception as e:
+            print("Error exporting data to Word:", str(e))
 
 
 if __name__ == "__main__":
