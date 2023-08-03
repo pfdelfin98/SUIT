@@ -3,25 +3,16 @@ import os
 import logs
 import numpy as np
 import pymysql
-from datetime import datetime, timedelta
-from PyQt5.QtWidgets import (
-    QTableWidget,
-    QTableWidgetItem,
-    QLabel,
-)
+from datetime import datetime
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QTimer
-from datetime import datetime, timedelta
-from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import (
-    QTableWidget,
     QScrollArea,
 )
 import openpyxl
 from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from docxtpl import DocxTemplate, InlineImage
 
 
 class Ui_Dashboard(object):
@@ -33,29 +24,16 @@ class Ui_Dashboard(object):
         self.file_name = ""
         self.file_path = ""
         self.folder_name = "Analytics"
-        self.folder_path = rf"C:\Users\Public\Documents\{self.folder_name}"  # Change this to your own file path
+        self.folder_path = rf"C:\Users\Cj\Documents\{self.folder_name}"  # Change this to your own file path
 
     def setupUi(self, MainWindow):
         self.MainWindow = MainWindow
-        # MainWindow.setWindowFlags(
-        #     MainWindow.windowFlags()
-        #     & ~QtCore.Qt.WindowMinimizeButtonHint
-        #     & ~QtCore.Qt.WindowMaximizeButtonHint
-        # )
 
         MainWindow.setObjectName("MainWindow")
-        # MainWindow.resize(1200, 700)
         self.MainWindow.showMaximized()
-        # MainWindow.setWindowFlags(
-        #     MainWindow.windowFlags()
-        #     & ~QtCore.Qt.WindowCloseButtonHint  # Remove the close button
-        # )
+
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-        # Add table widget
-        # self.tableWidget = QTableWidget(self.centralwidget)
-        # self.tableWidget.setGeometry(QtCore.QRect(310, 150, 850, 450))
-        # self.tableWidget.setObjectName("tableWidget")
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -186,7 +164,7 @@ class Ui_Dashboard(object):
         self.exportDataBtn.setStyleSheet(
             """
             QPushButton {
-                background-color: #dc3545;  
+                background-color: #dc3545;
                 border: none;
                 color: white;
                 padding: 8px 16px;
@@ -196,12 +174,46 @@ class Ui_Dashboard(object):
             }
 
             QPushButton:hover {
-                background-color: #c82333;  
+                background-color: #c82333;
             }
             """
         )
         self.exportDataBtn.clicked.connect(self.export_data_to_excel)
 
+        self.exportDocxBtn = QtWidgets.QPushButton(self.centralwidget)
+        self.exportDocxBtn.setGeometry(QtCore.QRect(1550, 90, 121, 40))
+        font = QtGui.QFont()
+        font.setFamily("Arial")
+        font.setPointSize(8)
+        self.exportDocxBtn.setFont(font)
+        self.exportDocxBtn.setObjectName("exportDocxBtn")
+        self.exportDocxBtn.setText("Export Document")
+        self.exportDocxBtn.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #dc3545;
+                border: none;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-family: Arial;
+                font-size: 8pt;
+            }
+
+            QPushButton:hover {
+                background-color: #c82333;
+            }
+            """
+        )
+        self.exportDocxBtn.clicked.connect(self.export_data_to_docx)
+
+        # self.available_filters = {
+        #     "ALL": 0,
+        #     "Daily": datetime.now().day,
+        #     "Weekly": datetime.now().isocalendar()[1],
+        #     "Monthly": datetime.now().month,
+        #     "Yearly": datetime.now().year,
+        # }
         self.searchComboBox = QtWidgets.QComboBox(self.centralwidget)
         self.searchComboBox.setGeometry(QtCore.QRect(1180, 95, 200, 30))
         self.searchComboBox.setObjectName("searchComboBox")
@@ -328,9 +340,16 @@ class Ui_Dashboard(object):
 
         self.barChartLayout.addWidget(canvas)
 
-    def draw_bar_graph(self, ax):
+        # Save the plot image
+        img = self.figuretoimage(plt.gcf())
+        img.save("Plot image.png")
+
+    def draw_bar_graph(self, ax, is_department: bool = False):
         bar_width = 0.35
         x = np.arange(len(self.categories))
+        xlabel = "Courses"
+        if is_department:
+            xlabel = "Departments"
 
         ax.clear()
 
@@ -350,7 +369,7 @@ class Ui_Dashboard(object):
         )
 
         yvalue = ax.get_ybound()[1]
-        ax.set_xlabel("Courses")
+        ax.set_xlabel(xlabel)
         ax.set_ylabel("Count")
         ax.set_ybound(upper=(yvalue * 2) / 1.5)
         ax.set_title(
@@ -430,6 +449,79 @@ class Ui_Dashboard(object):
             # Close the cursor and connection
             cursor.close()
             connection.close()
+
+    def export_data_to_docx(self):
+        self.selected_department = "ALL"
+        # Connect to the MySQL database
+        connection = pymysql.connect(
+            host="localhost", user="root", password="", database="suit_db"
+        )
+        self.categories = []
+        self.improper_log_count = []
+        self.proper_log_count = []
+
+        try:
+            # Execute the query and fetch the course and gender data
+            cursor = connection.cursor()
+            query = f"SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log GROUP BY department"
+
+            cursor.execute(query)
+            if cursor.rowcount > 0:
+                for row in cursor.fetchall():
+                    course, improper_log_count, proper_log_count = row
+                    self.categories.append(course)
+                    self.improper_log_count.append(improper_log_count)
+                    self.proper_log_count.append(proper_log_count)
+
+            else:
+                self.improper_log_count = [0]
+                self.proper_log_count = [0]
+
+        finally:
+            connection.close()
+
+        for i in reversed(range(self.barChartLayout.count())):
+            self.barChartLayout.itemAt(i).widget().setParent(None)
+
+        figure, ax = plt.subplots()
+
+        self.draw_bar_graph(ax)
+
+        # Save the plot image
+        chart_img = self.figuretoimage(plt.gcf())
+        self.generate_docx(chart_img)
+
+    def figuretoimage(self, figure):
+        import io
+        from PIL import Image
+
+        buf = io.BytesIO()
+        figure.savefig(buf, bbox_inches="tight", dpi=300)
+        buf.seek(0)
+        img = Image.open(buf)
+        return img
+
+    def generate_docx(self, chart_img):
+        now = datetime.now()
+        datetime_str = now.strftime("%m-%d-%Y-%H-%M-%S")
+
+        newimg = chart_img.resize((450, 250))
+        newimg.save("chart.png")
+
+        doc = DocxTemplate(r"templates\report.docx")
+        dic = {
+            "graph": InlineImage(doc, "chart.png"),
+            "date": now.strftime("%m/%d/%Y, %H:%M:%S"),
+        }
+
+        doc.render(dic)
+        document_name = (
+            f"Document_Analytics_{self.selected_department}_{datetime_str}.docx"
+        )
+        document_path = rf"{self.folder_path}\{document_name}"
+        if not os.path.exists(self.folder_path):
+            os.makedirs(self.folder_path)
+        doc.save(document_path)
 
 
 if __name__ == "__main__":
