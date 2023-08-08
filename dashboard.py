@@ -1,21 +1,18 @@
 import sys
 import os
-
-import matplotlib
-import logs
 import numpy as np
 import pymysql
+import openpyxl
 from datetime import datetime
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import (
     QScrollArea,
 )
-import openpyxl
-from datetime import datetime
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from docxtpl import DocxTemplate, InlineImage
-
+from pylab import MaxNLocator
+import logs
 import login
 
 
@@ -30,7 +27,7 @@ class Ui_Dashboard(object):
         self.file_name = ""
         self.file_path = ""
         self.folder_name = "Analytics"
-        self.folder_path = rf"C:\Users\SampleUser\Desktop\{self.folder_name}"  # Change this to your own file path
+        self.folder_path = rf"C:\Users\Cj\Desktop\{self.folder_name}"  # Change this to your own file path
 
     def setupUi(self, MainWindow):
         self.MainWindow = MainWindow
@@ -255,6 +252,45 @@ class Ui_Dashboard(object):
         self.searchLabel.setObjectName("searchLabel")
         self.searchLabel.setText("Department:")
 
+        self.filtervalueComboBox = QtWidgets.QComboBox(self.centralwidget)
+        self.filtervalueComboBox.setGeometry(QtCore.QRect(600, 95, 150, 30))
+        self.filtervalueComboBox.setObjectName("filtervalueComboBox")
+        self.filtervalueComboBox.addItem("ALL")
+        self.filtervalueComboBox.setCurrentIndex(0)
+        self.filtervalueComboBox.currentTextChanged.connect(self.config_box)
+
+        self.filtervalueLabel = QtWidgets.QLabel(self.centralwidget)
+        self.filtervalueLabel.setGeometry(QtCore.QRect(500, 95, 70, 30))
+        self.filtervalueLabel.setObjectName("filtervalueLabel")
+
+        totalproperLabelfont = QtGui.QFont()
+        totalproperLabelfont.setFamily("Arial")
+        totalproperLabelfont.setPointSize(17)
+        totalproperLabelfont.setBold(True)
+        totalproperLabelfont.setWeight(65)
+
+        self.totalproperLabel = QtWidgets.QLabel(self.centralwidget)
+        self.totalproperLabel.setGeometry(QtCore.QRect(400, 750, 150, 30))
+        self.totalproperLabel.setObjectName("totalproperLabel")
+        self.totalproperLabel.setText("Total Proper:")
+        self.totalproperLabel.setFont(totalproperLabelfont)
+
+        self.totalpropervalueLabel = QtWidgets.QLabel(self.centralwidget)
+        self.totalpropervalueLabel.setGeometry(QtCore.QRect(570, 750, 50, 30))
+        self.totalpropervalueLabel.setObjectName("totalpropervalueLabel")
+        self.totalpropervalueLabel.setFont(totalproperLabelfont)
+
+        self.totalimproperLabel = QtWidgets.QLabel(self.centralwidget)
+        self.totalimproperLabel.setGeometry(QtCore.QRect(400, 800, 170, 30))
+        self.totalimproperLabel.setObjectName("totalimproperLabel")
+        self.totalimproperLabel.setText("Total Improper:")
+        self.totalimproperLabel.setFont(totalproperLabelfont)
+
+        self.totalimpropervalueLabel = QtWidgets.QLabel(self.centralwidget)
+        self.totalimpropervalueLabel.setGeometry(QtCore.QRect(580, 800, 50, 30))
+        self.totalimpropervalueLabel.setObjectName("totalimpropervalueLabel")
+        self.totalimpropervalueLabel.setFont(totalproperLabelfont)
+
         # BARCHART
         self.barChart = QtWidgets.QWidget(self.centralwidget)
         self.barChart.setGeometry(QtCore.QRect(385, 180, 1100, 500))
@@ -300,6 +336,28 @@ class Ui_Dashboard(object):
             )
         )
 
+    def config_box(self):
+        if self.filterComboBox.currentText() == "ALL":
+            self.filtervalueLabel.hide()
+            self.filtervalueComboBox.hide()
+            self.filterLabel.move(920, 95)
+            self.filterComboBox.move(970, 95)
+        elif self.filterComboBox.currentText() in [
+            "Daily",
+            "Weekly",
+            "Monthly",
+            "Yearly",
+        ]:
+            self.filtervalueComboBox.show()
+            self.filtervalueLabel.show()
+            self.filtervalueComboBox.move(940, 95)
+            self.filtervalueLabel.move(890, 95)
+            self.filterLabel.move(720, 95)
+            self.filterComboBox.move(770, 95)
+            self.filtervalueLabel.setText(
+                self.available_filters[self.filterComboBox.currentText()][1].title()
+            )
+
     def start_loading_students(self):
         # Start loading the students initially
         # self.load_logs()
@@ -331,6 +389,7 @@ class Ui_Dashboard(object):
         self.login_window.show()
 
     def search_logs(self):
+        self.config_box()
         if self.figure and self.ax:
             self.figure.clear(True)
             self.ax.clear()
@@ -347,6 +406,7 @@ class Ui_Dashboard(object):
         self.categories = []
         self.improper_log_count = []
         self.proper_log_count = []
+        data = []
 
         try:
             # Execute the query and fetch the course and gender data
@@ -367,6 +427,13 @@ class Ui_Dashboard(object):
                     self.categories.append(course)
                     self.improper_log_count.append(improper_log_count)
                     self.proper_log_count.append(proper_log_count)
+                    data.append(
+                        {
+                            "department": course,
+                            "improper": improper_log_count,
+                            "proper": proper_log_count,
+                        }
+                    )
 
             else:
                 self.improper_log_count = [0]
@@ -381,6 +448,11 @@ class Ui_Dashboard(object):
         self.figure, self.ax = plt.subplots()
 
         self.draw_bar_graph(self.ax)
+        total_proper = sum(i.get("proper") for i in data)
+        total_improper = sum(i.get("improper") for i in data)
+
+        self.totalpropervalueLabel.setText(str(total_proper))
+        self.totalimpropervalueLabel.setText(str(total_improper))
 
         canvas = FigureCanvas(self.figure)
 
@@ -391,6 +463,7 @@ class Ui_Dashboard(object):
         img.save("Plot image.png")
 
     def draw_bar_graph(self, ax, is_department: bool = False):
+        selected = False
         bar_width = 0.35
         x = np.arange(len(self.categories))
         xlabel = "Courses"
@@ -399,14 +472,14 @@ class Ui_Dashboard(object):
 
         ax.clear()
 
-        ax.bar(
+        improper = ax.bar(
             x - bar_width / 2,
             self.improper_log_count,
             width=bar_width,
             label="Improper",
             color="#4F81BD",
         )
-        ax.bar(
+        proper = ax.bar(
             x + bar_width / 2,
             self.proper_log_count,
             width=bar_width,
@@ -414,15 +487,42 @@ class Ui_Dashboard(object):
             color="#C0504D",
         )
 
+        # Put Values in Chart
+        for i, item in enumerate(improper):
+            h = item.get_height()
+            ax.text(
+                item.get_x() + item.get_width() / 2.0,
+                1.02 * h,
+                self.improper_log_count[i],
+                ha="center",
+                va="bottom",
+            )
+
+        for i, item in enumerate(proper):
+            h = item.get_height()
+            ax.text(
+                item.get_x() + item.get_width() / 2.0,
+                1.02 * h,
+                self.proper_log_count[i],
+                ha="center",
+                va="bottom",
+            )
+
+        # Put labels
+        if self.selected_filter == "ALL":
+            filter_title = "Overall"
+            selected = True
+
         yvalue = ax.get_ybound()[1]
         ax.set_xlabel(xlabel)
         ax.set_ylabel("Count")
         ax.set_ybound(upper=(yvalue * 2) / 1.5)
         ax.set_title(
-            f"School Uniform Analytics for {self.selected_department} Department"
+            f"{filter_title if selected else self.selected_filter} School Uniform Analytics for {self.selected_department} Department"
         )
         ax.set_xticks(x)
         ax.set_xticklabels(self.categories)
+        ax.get_yaxis().set_major_locator(MaxNLocator(integer=True))
         ax.legend()
 
     def export_data_to_excel(self):
@@ -518,11 +618,21 @@ class Ui_Dashboard(object):
         self.categories = []
         self.improper_log_count = []
         self.proper_log_count = []
+        data = []
 
         try:
             # Execute the query and fetch the course and gender data
             cursor = connection.cursor()
-            query = f"SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log GROUP BY department"
+            if self.selected_department == "ALL" and self.selected_filter == "ALL":
+                query = "SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log GROUP BY department"
+                categories = ("Department", "Improper Uniform", "Proper Uniform")
+            elif self.selected_department == "ALL" and self.selected_filter != "ALL":
+                query = f"SELECT department, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY department"
+                categories = ("Department", "Improper Uniform", "Proper Uniform")
+            elif self.selected_department != "ALL" and self.selected_filter == "ALL":
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department= '{self.selected_department}' GROUP BY course"
+            else:
+                query = f"SELECT course, SUM(CASE WHEN unif_detect_result = 'IMPROPER' THEN 1 ELSE 0 END) AS improper_log_count, SUM(CASE WHEN unif_detect_result = 'PROPER' THEN 1 ELSE 0 END) AS proper_log_count FROM tbl_detect_log WHERE department = '{self.selected_department}' and {self.available_filters[self.selected_filter][1]}(date_log)={self.available_filters[self.selected_filter][0]} GROUP BY course"
 
             cursor.execute(query)
             if cursor.rowcount > 0:
@@ -531,6 +641,13 @@ class Ui_Dashboard(object):
                     self.categories.append(course)
                     self.improper_log_count.append(improper_log_count)
                     self.proper_log_count.append(proper_log_count)
+                    data.append(
+                        {
+                            "department": course,
+                            "improper": improper_log_count,
+                            "proper": proper_log_count,
+                        }
+                    )
 
             else:
                 self.improper_log_count = [0]
@@ -548,12 +665,12 @@ class Ui_Dashboard(object):
 
         self.draw_bar_graph(self.ax)
 
-        self.filterComboBox.setCurrentIndex(0)
-        self.searchComboBox.setCurrentIndex(0)
+        # self.filterComboBox.setCurrentIndex(0)
+        # self.searchComboBox.setCurrentIndex(0)
 
         # Save the plot image
         chart_img = self.figuretoimage(plt.gcf())
-        self.generate_docx(chart_img)
+        self.generate_docx(chart_img, data)
 
     def figuretoimage(self, figure):
         import io
@@ -565,7 +682,8 @@ class Ui_Dashboard(object):
         img = Image.open(buf)
         return img
 
-    def generate_docx(self, chart_img):
+    def generate_docx(self, chart_img, data):
+        selected_all = False
         now = datetime.now()
         datetime_str = now.strftime("%m-%d-%Y-%H-%M-%S")
 
@@ -573,15 +691,24 @@ class Ui_Dashboard(object):
         newimg.save("chart.png")
         try:
             doc = DocxTemplate(r"templates\report.docx")
+            # Put labels
+            if self.selected_filter == "ALL":
+                filter_title = "Overall"
+                selected_all = True
+
             dic = {
                 "graph": InlineImage(doc, "chart.png"),
                 "date": now.strftime("%m/%d/%Y, %H:%M:%S"),
+                "filter": filter_title.upper()
+                if selected_all
+                else self.selected_filter.upper(),
+                "var": data,
+                "total_proper": sum(i.get("proper") for i in data),
+                "total_improper": sum(i.get("improper") for i in data),
             }
 
             doc.render(dic)
-            document_name = (
-                f"Document_Analytics_{self.selected_department}_{datetime_str}.docx"
-            )
+            document_name = f"{filter_title if selected_all else self.selected_filter}_Document_Analytics_{self.selected_department}_{datetime_str}.docx"
             document_path = rf"{self.folder_path}\{document_name}"
             if not os.path.exists(self.folder_path):
                 os.makedirs(self.folder_path)
